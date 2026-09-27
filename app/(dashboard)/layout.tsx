@@ -20,9 +20,9 @@ import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 const pageNames: Record<string, string> = {
   "/dashboard": "Overview",
   "/products": "Products",
-  "/products/new": "Add Product",
+  "/products/add-product": "Add Product",
   "/orders": "Orders",
-  "/orders/new": "New Order",
+  "/orders/add-order": "Add Order",
   "/reports": "Reports",
 };
 
@@ -35,17 +35,12 @@ export default function DashboardLayout({
 
   const currentPage = pageNames[pathname] ?? "Dashboard";
 
-  const isDashboard = pathname === "/dashboard";
-
   return (
     <SidebarProvider>
       <AppSidebar />
 
       <main className="flex min-h-svh min-w-0 flex-1 flex-col">
-        <header
-          className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b
-         bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80"
-        >
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b bg-background px-4">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1" />
 
@@ -55,31 +50,21 @@ export default function DashboardLayout({
               <BreadcrumbList className="flex-nowrap">
                 <BreadcrumbItem>
                   <BreadcrumbLink
-                    render={<Link href="/dashboard">Dashboard</Link>}
+                    render={
+                      <Link href="/dashboard" className="text-muted-foreground">
+                        Dashboard
+                      </Link>
+                    }
                   ></BreadcrumbLink>
                 </BreadcrumbItem>
 
-                {!isDashboard && (
-                  <>
-                    <BreadcrumbSeparator />
+                <BreadcrumbSeparator />
 
-                    <BreadcrumbItem className="min-w-0">
-                      <BreadcrumbPage className="truncate">
-                        {currentPage}
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </>
-                )}
-
-                {isDashboard && (
-                  <>
-                    <BreadcrumbSeparator />
-
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>Overview</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </>
-                )}
+                <BreadcrumbItem className="min-w-0">
+                  <BreadcrumbPage className="truncate font-medium">
+                    {currentPage}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>

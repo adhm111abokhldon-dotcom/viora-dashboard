@@ -3,22 +3,27 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  CheckCircle2,
   Clock3,
   DollarSign,
-  Eye,
   MoreHorizontal,
-  PackageCheck,
+  Package,
   Plus,
   Search,
   ShoppingBag,
-  Truck,
-  XCircle,
+  UserRound,
 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -27,14 +32,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-type OrderStatus = "Pending" | "Processing" | "Delivered" | "Cancelled";
+type OrderStatus = "Delivered" | "Pending" | "Processing" | "Cancelled";
 
 type Order = {
   id: string;
@@ -130,50 +136,62 @@ const orders: Order[] = [
   },
 ];
 
-const statusConfig: Record<
-  OrderStatus,
-  {
-    label: string;
-    className: string;
-    icon: typeof Clock3;
-  }
-> = {
-  Pending: {
-    label: "Pending",
-    className:
-      "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    icon: Clock3,
-  },
-  Processing: {
-    label: "Processing",
-    className:
-      "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400",
-    icon: Truck,
-  },
-  Delivered: {
-    label: "Delivered",
-    className:
-      "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-    icon: CheckCircle2,
-  },
-  Cancelled: {
-    label: "Cancelled",
-    className: "border-destructive/20 bg-destructive/10 text-destructive",
-    icon: XCircle,
-  },
+const statusStyles: Record<OrderStatus, string> = {
+  Delivered:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400",
+  Pending:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+  Processing:
+    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-400",
+  Cancelled:
+    "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400",
 };
 
 function StatusBadge({ status }: { status: OrderStatus }) {
-  const config = statusConfig[status];
-  const Icon = config.icon;
-
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${config.className}`}
-    >
-      <Icon className="size-3.5" />
-      {config.label}
-    </span>
+    <Badge variant="outline" className={`font-medium ${statusStyles[status]}`}>
+      {status}
+    </Badge>
+  );
+}
+
+function OrderActions({ order }: { order: Order }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            aria-label={`Actions for order ${order.id}`}
+          />
+        }
+      >
+        <MoreHorizontal className="size-4" />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem>View Order</DropdownMenuItem>
+        <DropdownMenuItem>Edit Order</DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        {order.status === "Pending" && (
+          <DropdownMenuItem>Mark as Processing</DropdownMenuItem>
+        )}
+
+        {order.status === "Processing" && (
+          <DropdownMenuItem>Mark as Delivered</DropdownMenuItem>
+        )}
+
+        {order.status !== "Cancelled" && order.status !== "Delivered" && (
+          <DropdownMenuItem className="text-destructive focus:text-destructive">
+            Cancel Order
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -182,28 +200,25 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const stats = useMemo(() => {
-    const totalRevenue = orders
-      .filter((order) => order.status !== "Cancelled")
-      .reduce((sum, order) => sum + order.total, 0);
-
     const totalOrders = orders.length;
 
-    const pending = orders.filter((order) => order.status === "Pending").length;
+    const pendingOrders = orders.filter(
+      (order) => order.status === "Pending",
+    ).length;
 
-    const processing = orders.filter(
+    const processingOrders = orders.filter(
       (order) => order.status === "Processing",
     ).length;
 
-    const delivered = orders.filter(
-      (order) => order.status === "Delivered",
-    ).length;
+    const revenue = orders
+      .filter((order) => order.status !== "Cancelled")
+      .reduce((total, order) => total + order.total, 0);
 
     return {
-      totalRevenue,
       totalOrders,
-      pending,
-      processing,
-      delivered,
+      pendingOrders,
+      processingOrders,
+      revenue,
     };
   }, []);
 
@@ -218,8 +233,7 @@ export default function OrdersPage() {
         order.product.toLowerCase().includes(query);
 
       const matchesStatus =
-        statusFilter === "all" ||
-        order.status.toLowerCase() === statusFilter.toLowerCase();
+        statusFilter === "all" || order.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -227,14 +241,14 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Orders
           </h1>
 
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Manage your orders and track their status.
           </p>
         </div>
@@ -248,68 +262,64 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Summary */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="shadow-none">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Orders</p>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted">
+              <ShoppingBag className="size-5 text-muted-foreground" />
+            </div>
 
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">Total Orders</p>
               <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
                 {stats.totalOrders}
               </p>
             </div>
-
-            <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/50">
-              <ShoppingBag className="size-5 text-muted-foreground" />
-            </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-amber-50 dark:bg-amber-950/30">
+              <Clock3 className="size-5 text-amber-600 dark:text-amber-400" />
+            </div>
+
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Pending</p>
-
               <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-                {stats.pending}
+                {stats.pendingOrders}
               </p>
-            </div>
-
-            <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/50">
-              <Clock3 className="size-5 text-amber-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-blue-50 dark:bg-blue-950/30">
+              <Package className="size-5 text-blue-600 dark:text-blue-400" />
+            </div>
+
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Processing</p>
-
               <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-                {stats.processing}
+                {stats.processingOrders}
               </p>
-            </div>
-
-            <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/50">
-              <PackageCheck className="size-5 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Revenue</p>
-
-              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-                ${stats.totalRevenue.toFixed(2)}
-              </p>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted">
+              <DollarSign className="size-5 text-muted-foreground" />
             </div>
 
-            <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/50">
-              <DollarSign className="size-5 text-emerald-500" />
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">Revenue</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                ${stats.revenue.toFixed(2)}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -318,17 +328,16 @@ export default function OrdersPage() {
       {/* Orders */}
       <Card className="shadow-none">
         <CardHeader className="gap-4 border-b">
-          <div>
+          <div className="flex flex-col gap-1">
             <CardTitle className="text-base">All Orders</CardTitle>
 
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               View and manage all customer orders.
             </p>
           </div>
 
-          {/* Filters */}
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
+            <div className="relative flex-1 sm:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
               <Input
@@ -344,19 +353,15 @@ export default function OrdersPage() {
               onValueChange={(value) => setStatusFilter(value ?? "all")}
             >
               <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Filter status" />
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-
-                <SelectItem value="pending">Pending</SelectItem>
-
-                <SelectItem value="processing">Processing</SelectItem>
-
-                <SelectItem value="delivered">Delivered</SelectItem>
-
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Processing">Processing</SelectItem>
+                <SelectItem value="Delivered">Delivered</SelectItem>
+                <SelectItem value="Cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -364,231 +369,189 @@ export default function OrdersPage() {
 
         <CardContent className="p-0">
           {/* Desktop Table */}
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">
-                    Order
-                  </th>
+          <div className="hidden md:block">
+            <div className="max-h-[520px] overflow-y-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  <TableRow>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Profit</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-12" />
+                  </TableRow>
+                </TableHeader>
 
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">
-                    Customer
-                  </th>
+                <TableBody>
+                  {filteredOrders.length > 0 ? (
+                    filteredOrders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{order.id}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {order.date}
+                            </p>
+                          </div>
+                        </TableCell>
 
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">
-                    Product
-                  </th>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="flex size-8 items-center justify-center rounded-full border bg-muted">
+                              <UserRound className="size-4 text-muted-foreground" />
+                            </div>
 
-                  <th className="px-5 py-3 text-right text-xs font-medium text-muted-foreground">
-                    Total
-                  </th>
+                            <span className="font-medium">
+                              {order.customer}
+                            </span>
+                          </div>
+                        </TableCell>
 
-                  <th className="px-5 py-3 text-right text-xs font-medium text-muted-foreground">
-                    Profit
-                  </th>
+                        <TableCell>
+                          <div>
+                            <p>{order.product}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Qty: {order.quantity}
+                            </p>
+                          </div>
+                        </TableCell>
 
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">
-                    Status
-                  </th>
+                        <TableCell className="font-medium tabular-nums">
+                          ${order.total.toFixed(2)}
+                        </TableCell>
 
-                  <th className="px-5 py-3 text-right text-xs font-medium text-muted-foreground">
-                    Date
-                  </th>
+                        <TableCell className="font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                          +${order.profit.toFixed(2)}
+                        </TableCell>
 
-                  <th className="px-5 py-3 text-right text-xs font-medium text-muted-foreground">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
+                        <TableCell>
+                          <StatusBadge status={order.status} />
+                        </TableCell>
 
-              <tbody>
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="border-b last:border-0">
-                    <td className="px-5 py-4">
-                      <span className="font-medium tabular-nums">
-                        {order.id}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span className="text-sm">{order.customer}</span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div>
-                        <p className="text-sm font-medium">{order.product}</p>
-
-                        <p className="text-xs text-muted-foreground">
-                          Qty: {order.quantity}
-                        </p>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <span className="text-sm font-medium tabular-nums">
-                        ${order.total.toFixed(2)}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        +${order.profit.toFixed(2)}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <StatusBadge status={order.status} />
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <span className="text-sm text-muted-foreground">
-                        {order.date}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <OrderActions />
-                    </td>
-                  </tr>
-                ))}
-
-                {filteredOrders.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-5 py-12 text-center">
-                      <div className="mx-auto flex max-w-sm flex-col items-center">
-                        <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/50">
-                          <Search className="size-5 text-muted-foreground" />
-                        </div>
-
-                        <p className="mt-3 text-sm font-medium">
-                          No orders found
-                        </p>
-
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Try changing your search or filter.
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        <TableCell>
+                          <OrderActions order={order} />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="h-32 text-center text-sm text-muted-foreground"
+                      >
+                        No orders found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           {/* Mobile Orders */}
-          <div className="divide-y md:hidden">
-            {filteredOrders.map((order) => (
-              <div key={order.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium tabular-nums">
-                        {order.id}
-                      </span>
+          <div className="md:hidden">
+            <div className="max-h-[560px] overflow-y-scroll">
+              <div className="divide-y">
+                {filteredOrders.length > 0 ? (
+                  filteredOrders.map((order) => (
+                    <div key={order.id} className="space-y-4 p-4">
+                      {/* Order Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold">{order.id}</p>
 
-                      <StatusBadge status={order.status} />
+                            <StatusBadge status={order.status} />
+                          </div>
+
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {order.date}
+                          </p>
+                        </div>
+
+                        <OrderActions order={order} />
+                      </div>
+
+                      {/* Customer */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full border bg-muted">
+                          <UserRound className="size-4 text-muted-foreground" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {order.customer}
+                          </p>
+
+                          <p className="text-xs text-muted-foreground">
+                            Customer
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Order Details */}
+                      <div className="rounded-md border p-3">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">
+                              Product
+                            </p>
+
+                            <p className="mt-1 truncate text-sm font-medium">
+                              {order.product}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Quantity
+                            </p>
+
+                            <p className="mt-1 text-sm font-medium tabular-nums">
+                              {order.quantity}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Total
+                            </p>
+
+                            <p className="mt-1 text-sm font-semibold tabular-nums">
+                              ${order.total.toFixed(2)}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Profit
+                            </p>
+
+                            <p className="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              +${order.profit.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    <p className="mt-1 truncate text-sm font-medium">
-                      {order.customer}
-                    </p>
+                  ))
+                ) : (
+                  <div className="flex min-h-32 items-center justify-center p-6 text-sm text-muted-foreground">
+                    No orders found.
                   </div>
-
-                  <OrderActions />
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Product</p>
-
-                    <p className="mt-1 text-sm font-medium">{order.product}</p>
-
-                    <p className="text-xs text-muted-foreground">
-                      Qty: {order.quantity}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Total</p>
-
-                    <p className="mt-1 text-sm font-semibold tabular-nums">
-                      ${order.total.toFixed(2)}
-                    </p>
-
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      +${order.profit.toFixed(2)} profit
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between border-t pt-3">
-                  <span className="text-xs text-muted-foreground">
-                    {order.date}
-                  </span>
-
-                  <Button variant="ghost" size="sm" className="h-8">
-                    <Eye className="size-3.5" />
-                    View
-                  </Button>
-                </div>
+                )}
               </div>
-            ))}
-
-            {filteredOrders.length === 0 && (
-              <div className="px-4 py-12 text-center">
-                <div className="mx-auto flex size-10 items-center justify-center rounded-lg border bg-muted/50">
-                  <Search className="size-5 text-muted-foreground" />
-                </div>
-
-                <p className="mt-3 text-sm font-medium">No orders found</p>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Try changing your search or filter.
-                </p>
-              </div>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Result count */}
+      <div className="text-xs text-muted-foreground">
+        Showing {filteredOrders.length} of {orders.length} orders
+      </div>
     </div>
-  );
-}
-
-function OrderActions() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 shrink-0"
-            aria-label="Order actions"
-          />
-        }
-      >
-        <MoreHorizontal className="size-4" />
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem>
-          <Eye className="size-4" />
-          View Order
-        </DropdownMenuItem>
-
-        <DropdownMenuItem>
-          <Truck className="size-4" />
-          Update Status
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem className="text-destructive focus:text-destructive">
-          <XCircle className="size-4" />
-          Cancel Order
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

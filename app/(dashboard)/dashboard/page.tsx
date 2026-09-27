@@ -2,14 +2,12 @@
 
 import { motion } from "motion/react";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   Clock3,
   DollarSign,
+  MoreHorizontal,
   ShoppingBag,
   TrendingUp,
 } from "lucide-react";
-
 import {
   Area,
   AreaChart,
@@ -20,7 +18,24 @@ import {
   YAxis,
 } from "recharts";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 
 const stats = [
   {
@@ -29,7 +44,6 @@ const stats = [
     change: "+12.5%",
     description: "vs. yesterday",
     icon: DollarSign,
-    positive: true,
   },
   {
     title: "Today's Profit",
@@ -37,7 +51,6 @@ const stats = [
     change: "+8.2%",
     description: "vs. yesterday",
     icon: TrendingUp,
-    positive: true,
   },
   {
     title: "Orders Today",
@@ -45,7 +58,6 @@ const stats = [
     change: "+3",
     description: "vs. yesterday",
     icon: ShoppingBag,
-    positive: true,
   },
   {
     title: "Pending Orders",
@@ -53,7 +65,6 @@ const stats = [
     change: "-2",
     description: "vs. yesterday",
     icon: Clock3,
-    positive: false,
   },
 ];
 
@@ -92,6 +103,24 @@ const recentOrders = [
     amount: "$15.00",
     status: "Delivered",
   },
+  {
+    id: "#1024",
+    product: "Lipstick",
+    amount: "$15.00",
+    status: "Delivered",
+  },
+  {
+    id: "#1025",
+    product: "Lipstick",
+    amount: "$15.00",
+    status: "Delivered",
+  },
+  {
+    id: "#1026",
+    product: "Lipstick",
+    amount: "$15.00",
+    status: "Delivered",
+  },
 ];
 
 const orderStatus = [
@@ -112,113 +141,91 @@ const orderStatus = [
   },
 ];
 
-const containerVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.06,
-    },
-  },
+const statusStyles: Record<string, string> = {
+  Delivered:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400",
+
+  Pending:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+
+  Processing:
+    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-400",
+
+  Cancelled:
+    "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400",
 };
 
-const itemVariants = {
-  hidden: {
-    opacity: 0,
-    y: 12,
-  },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4,
-      ease: "easeOut" as const,
-    },
-  },
+const statusBarStyles: Record<string, string> = {
+  Delivered: "bg-emerald-500",
+  Pending: "bg-amber-500",
+  Processing: "bg-blue-500",
+  Cancelled: "bg-red-500",
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const styles = {
-    Delivered: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    Pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    Cancelled: "bg-destructive/10 text-destructive",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-        styles[status as keyof typeof styles]
-      }`}
-    >
-      {status}
-    </span>
-  );
-}
+const chartConfig = {
+  sales: {
+    label: "Sales",
+    color: "var(--primary)",
+  },
+};
 
 export default function DashboardPage() {
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="mx-auto w-full max-w-[1600px] space-y-8"
-    >
+    <div className="space-y-6">
       {/* Page Header */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Dashboard
-        </h1>
+      <motion.header
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+      >
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
 
-        <p className="text-sm text-muted-foreground sm:text-[15px]">
-          Here&apos;s an overview of your business performance today.
+        <p className="mt-1 text-sm text-muted-foreground">
+          Track your sales, orders, and business performance.
         </p>
-      </motion.div>
+      </motion.header>
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => {
+        {stats.map((stat, index) => {
           const Icon = stat.icon;
 
           return (
-            <motion.div key={stat.title} variants={itemVariants}>
-              <Card className="shadow-none">
+            <motion.div
+              key={stat.title}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.35,
+                delay: index * 0.05,
+              }}
+            >
+              <Card className="h-full shadow-none">
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium text-muted-foreground">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm text-muted-foreground">
                         {stat.title}
                       </p>
 
-                      <p className="text-2xl font-semibold tracking-tight tabular-nums">
+                      <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
                         {stat.value}
                       </p>
-
-                      <div className="flex items-center gap-1.5 text-xs">
-                        {stat.positive ? (
-                          <ArrowUpRight className="size-3.5 text-emerald-500" />
-                        ) : (
-                          <ArrowDownRight className="size-3.5 text-muted-foreground" />
-                        )}
-
-                        <span
-                          className={
-                            stat.positive
-                              ? "font-medium text-emerald-600 dark:text-emerald-400"
-                              : "font-medium text-muted-foreground"
-                          }
-                        >
-                          {stat.change}
-                        </span>
-
-                        <span className="text-muted-foreground">
-                          {stat.description}
-                        </span>
-                      </div>
                     </div>
 
-                    <div className="flex size-9 items-center justify-center rounded-lg border bg-muted/40">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-muted">
                       <Icon className="size-4 text-muted-foreground" />
                     </div>
                   </div>
+
+                  <p className="mt-3 text-xs">
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                      {stat.change}
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      {stat.description}
+                    </span>
+                  </p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -226,165 +233,127 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Main Analytics */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)]">
-        {/* Sales Chart */}
-        <motion.div variants={itemVariants}>
-          <Card className="h-full shadow-none">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div className="space-y-1">
-                <CardTitle className="text-base font-semibold">
-                  Sales Overview
-                </CardTitle>
+      {/* Sales Overview */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.35,
+          delay: 0.2,
+        }}
+      >
+        <Card className="shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">
+              Sales Overview
+            </CardTitle>
 
-                <p className="text-sm text-muted-foreground">
-                  Sales performance over the last 7 days
-                </p>
-              </div>
+            <CardDescription>
+              Sales performance over the last 7 days.
+            </CardDescription>
+          </CardHeader>
 
-              <div className="text-right">
-                <p className="text-xl font-semibold tracking-tight tabular-nums">
-                  $1,030
-                </p>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={salesData}
+                  margin={{
+                    top: 10,
+                    right: 8,
+                    left: -20,
+                    bottom: 0,
+                  }}
+                >
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
 
-                <p className="text-xs text-muted-foreground">Total sales</p>
-              </div>
-            </CardHeader>
-
-            <CardContent className="pt-2">
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={salesData}
-                    margin={{
-                      top: 10,
-                      right: 8,
-                      left: -20,
-                      bottom: 0,
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={10}
+                    tick={{
+                      fill: "var(--muted-foreground)",
+                      fontSize: 12,
                     }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="salesGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="var(--primary)"
-                          stopOpacity={0.2}
-                        />
+                  />
 
-                        <stop
-                          offset="100%"
-                          stopColor="var(--primary)"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={10}
+                    tick={{
+                      fill: "var(--muted-foreground)",
+                      fontSize: 12,
+                    }}
+                  />
 
-                    <CartesianGrid
-                      vertical={false}
-                      stroke="var(--border)"
-                      strokeDasharray="4 4"
-                    />
+                  <Tooltip
+                    content={<ChartTooltipContent />}
+                    cursor={{
+                      stroke: "var(--border)",
+                    }}
+                  />
 
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{
-                        fill: "var(--muted-foreground)",
-                        fontSize: 12,
-                      }}
-                      dy={8}
-                    />
+                  <Area
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="var(--primary)"
+                    fill="var(--primary)"
+                    fillOpacity={0.08}
+                    strokeWidth={2}
+                    activeDot={{
+                      r: 4,
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
 
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{
-                        fill: "var(--muted-foreground)",
-                        fontSize: 12,
-                      }}
-                      tickFormatter={(value) => `$${value}`}
-                    />
-
-                    <Tooltip
-                      cursor={{
-                        stroke: "var(--border)",
-                      }}
-                      contentStyle={{
-                        borderRadius: "10px",
-                        border: "1px solid var(--border)",
-                        background: "var(--popover)",
-                        color: "var(--popover-foreground)",
-                        boxShadow: "none",
-                      }}
-                      formatter={(value) => [`$${value}`, "Sales"]}
-                    />
-
-                    <Area
-                      type="monotone"
-                      dataKey="sales"
-                      stroke="var(--primary)"
-                      strokeWidth={2}
-                      fill="url(#salesGradient)"
-                      dot={false}
-                      activeDot={{
-                        r: 4,
-                        fill: "var(--primary)",
-                        stroke: "var(--background)",
-                        strokeWidth: 2,
-                      }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
+      {/* Bottom Section */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         {/* Order Status */}
-        <motion.div variants={itemVariants}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.35,
+            delay: 0.25,
+          }}
+        >
           <Card className="h-full shadow-none">
             <CardHeader>
               <CardTitle className="text-base font-semibold">
                 Order Status
               </CardTitle>
 
-              <p className="text-sm text-muted-foreground">
-                Current order distribution
-              </p>
+              <CardDescription>Current order distribution.</CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-6">
-              <div className="flex items-end gap-2">
-                <span className="text-4xl font-semibold tracking-tight tabular-nums">
-                  34
-                </span>
-
-                <span className="mb-1 text-sm text-muted-foreground">
-                  total orders
-                </span>
-              </div>
-
+            <CardContent>
               <div className="space-y-5">
                 {orderStatus.map((item) => (
                   <div key={item.label} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{item.label}</span>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={`size-2 shrink-0 rounded-full ${statusBarStyles[item.label]}`}
+                        />
 
-                      <span className="tabular-nums text-muted-foreground">
-                        {item.value} · {item.percentage}%
+                        <span className="truncate">{item.label}</span>
+                      </div>
+
+                      <span className="font-medium tabular-nums">
+                        {item.value}
                       </span>
                     </div>
 
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full bg-primary transition-all"
+                        className={`h-full rounded-full transition-all ${statusBarStyles[item.label]}`}
                         style={{
                           width: `${item.percentage}%`,
                         }}
@@ -396,85 +365,139 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </motion.div>
-      </div>
 
-      {/* Recent Orders */}
-      <motion.div variants={itemVariants}>
-        <Card className="shadow-none">
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-base font-semibold">
-                Recent Orders
-              </CardTitle>
+        {/* Recent Orders */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.35,
+            delay: 0.3,
+          }}
+        >
+          <Card className="h-full shadow-none">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base font-semibold">
+                    Recent Orders
+                  </CardTitle>
 
-              <p className="mt-1 text-sm text-muted-foreground">
-                Your latest customer orders
-              </p>
-            </div>
+                  <CardDescription>Your latest orders.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
 
-            <button className="text-sm font-medium text-primary transition-opacity hover:opacity-80">
-              View all
-            </button>
-          </CardHeader>
+            <CardContent className="p-0">
+              {/* Desktop Table */}
+              <div className="hidden md:block max-h-100 overflow-y-scroll">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="ps-6 text-xs font-medium text-muted-foreground">
+                        Order
+                      </TableHead>
 
-          <CardContent className="p-0">
-            {/* Desktop */}
-            <div className="hidden md:block">
-              <div className="grid grid-cols-[1fr_2fr_1fr_1fr] border-y px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <span>Order</span>
-                <span>Product</span>
-                <span>Amount</span>
-                <span>Status</span>
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Product
+                      </TableHead>
+
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Amount
+                      </TableHead>
+
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Status
+                      </TableHead>
+
+                      <TableHead className="w-10 pe-6" />
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {recentOrders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="ps-6 font-medium tabular-nums">
+                          {order.id}
+                        </TableCell>
+
+                        <TableCell className="text-muted-foreground">
+                          {order.product}
+                        </TableCell>
+
+                        <TableCell className="font-medium tabular-nums">
+                          {order.amount}
+                        </TableCell>
+
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={statusStyles[order.status]}
+                          >
+                            {order.status}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="pr-6">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label={`Actions for ${order.id}`}
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
 
-              {recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="grid grid-cols-[1fr_2fr_1fr_1fr] items-center border-b px-6 py-4 last:border-b-0"
-                >
-                  <span className="text-sm font-medium">{order.id}</span>
+              {/* Mobile Cards */}
+              <div className="space-y-2 p-4 md:hidden max-h-70 overflow-y-scroll">
+                {recentOrders.map((order) => (
+                  <div key={order.id} className="rounded-lg border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium tabular-nums">
+                          {order.id}
+                        </p>
 
-                  <span className="text-sm text-muted-foreground">
-                    {order.product}
-                  </span>
+                        <p className="mt-1 truncate text-sm text-muted-foreground">
+                          {order.product}
+                        </p>
+                      </div>
 
-                  <span className="text-sm font-medium tabular-nums">
-                    {order.amount}
-                  </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0"
+                        aria-label={`Actions for ${order.id}`}
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </div>
 
-                  <div>
-                    <StatusBadge status={order.status} />
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <span className="font-medium tabular-nums">
+                        {order.amount}
+                      </span>
+
+                      <Badge
+                        variant="outline"
+                        className={statusStyles[order.status]}
+                      >
+                        {order.status}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Mobile */}
-            <div className="divide-y md:hidden">
-              {recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex items-center justify-between gap-4 px-5 py-4"
-                >
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-sm font-medium">{order.product}</p>
-
-                    <p className="text-xs text-muted-foreground">{order.id}</p>
-                  </div>
-
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <span className="text-sm font-medium tabular-nums">
-                      {order.amount}
-                    </span>
-
-                    <StatusBadge status={order.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </div>
   );
 }
