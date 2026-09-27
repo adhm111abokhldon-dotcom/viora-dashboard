@@ -1,17 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { SetStateAction, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { ArrowLeft, Package, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type FormErrors = {
   name?: string;
@@ -31,126 +26,102 @@ type FormErrors = {
 
 export default function AddProductPage() {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<string | null>("");
+  const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
   const [stock, setStock] = useState("");
 
   const [errors, setErrors] = useState<FormErrors>({});
 
+  const sellingPrice = Number(price) || 0;
+  const productCost = Number(cost) || 0;
+
   const margin = useMemo(() => {
-    const sellingPrice = Number(price);
-    const productCost = Number(cost);
-
-    if (!price || !cost || sellingPrice <= 0 || productCost < 0) {
-      return null;
-    }
-
     return sellingPrice - productCost;
-  }, [price, cost]);
+  }, [sellingPrice, productCost]);
 
   const marginPercentage = useMemo(() => {
-    const sellingPrice = Number(price);
-
-    if (margin === null || sellingPrice <= 0) {
-      return null;
-    }
+    if (sellingPrice <= 0) return 0;
 
     return (margin / sellingPrice) * 100;
-  }, [price, margin]);
+  }, [margin, sellingPrice]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const nextErrors: FormErrors = {};
-
-    const sellingPrice = Number(price);
-    const productCost = Number(cost);
-    const stockQuantity = Number(stock);
+  function validate() {
+    const newErrors: FormErrors = {};
 
     if (!name.trim()) {
-      nextErrors.name = "Product name is required.";
+      newErrors.name = "Product name is required.";
     }
 
     if (!category) {
-      nextErrors.category = "Please select a category.";
+      newErrors.category = "Please select a category.";
     }
 
-    if (price === "" || sellingPrice <= 0) {
-      nextErrors.price = "Selling price must be greater than 0.";
+    if (!price) {
+      newErrors.price = "Selling price is required.";
+    } else if (sellingPrice <= 0) {
+      newErrors.price = "Selling price must be greater than 0.";
     }
 
-    if (cost === "" || productCost < 0) {
-      nextErrors.cost = "Product cost cannot be negative.";
+    if (!cost) {
+      newErrors.cost = "Product cost is required.";
+    } else if (productCost < 0) {
+      newErrors.cost = "Product cost cannot be negative.";
+    } else if (productCost >= sellingPrice && sellingPrice > 0) {
+      newErrors.cost = "Cost must be lower than the selling price.";
     }
 
-    if (stock === "" || stockQuantity < 0) {
-      nextErrors.stock = "Stock cannot be negative.";
+    if (!stock) {
+      newErrors.stock = "Stock quantity is required.";
+    } else if (Number(stock) < 0) {
+      newErrors.stock = "Stock cannot be negative.";
     }
 
-    if (
-      price !== "" &&
-      cost !== "" &&
-      sellingPrice > 0 &&
-      productCost >= sellingPrice
-    ) {
-      nextErrors.cost = "Product cost should be lower than the selling price.";
-    }
+    setErrors(newErrors);
 
-    setErrors(nextErrors);
+    return Object.keys(newErrors).length === 0;
+  }
 
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!validate()) return;
 
     const productData = {
       name: name.trim(),
       category,
       price: sellingPrice,
       cost: productCost,
-      stock: stockQuantity,
-      margin: sellingPrice - productCost,
-      marginPercentage: ((sellingPrice - productCost) / sellingPrice) * 100,
+      stock: Number(stock),
+      margin,
+      marginPercentage,
     };
 
     console.log("Product:", productData);
   }
 
-  function clearError(field: keyof FormErrors) {
-    if (!errors[field]) {
-      return;
-    }
-
-    setErrors((current) => ({
-      ...current,
-      [field]: undefined,
-    }));
-  }
-
   return (
-    <div className="mx-auto w-full max-w-4xl">
-      {/* Page Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            className="mt-0.5 shrink-0"
-            render={<Link href="/products" />}
-            aria-label="Back to products"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+    <div className="mx-auto w-full max-w-4xl space-y-6">
+      {/* Header */}
+      <div className="space-y-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          render={<Link href="/products" />}
+          className="-ml-2 w-fit"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Products
+        </Button>
 
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Add Product
-            </h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Add Product
+          </h1>
 
-            <p className="mt-1 text-sm text-muted-foreground">
-              Add a new product to your inventory.
-            </p>
-          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Add a new product to your inventory.
+          </p>
         </div>
       </div>
 
@@ -159,7 +130,7 @@ export default function AddProductPage() {
         <Card className="shadow-none">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg border bg-muted/50">
+              <div className="flex size-9 items-center justify-center rounded-md border bg-muted">
                 <Package className="size-4 text-muted-foreground" />
               </div>
 
@@ -167,73 +138,76 @@ export default function AddProductPage() {
                 <CardTitle className="text-base">Basic Information</CardTitle>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Basic details about your product.
+                  Enter the basic details of your product.
                 </p>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent>
-            <FieldGroup>
-              {/* Product Name */}
-              <Field>
-                <FieldLabel htmlFor="name">Product Name</FieldLabel>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            {/* Product Name */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="name">Product Name</Label>
 
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(event) => {
-                    setName(event.target.value);
-                    clearError("name");
-                  }}
-                  placeholder="e.g. LED Bear"
-                  aria-invalid={!!errors.name}
-                />
+              <Input
+                id="name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
 
-                {errors.name ? (
-                  <p className="text-sm text-destructive">{errors.name}</p>
-                ) : (
-                  <FieldDescription>
-                    Use a short and recognizable product name.
-                  </FieldDescription>
-                )}
-              </Field>
+                  if (errors.name) {
+                    setErrors((current) => ({
+                      ...current,
+                      name: undefined,
+                    }));
+                  }
+                }}
+                placeholder="e.g. LED Bear"
+                aria-invalid={!!errors.name}
+              />
 
-              {/* Category */}
-              <Field>
-                <FieldLabel htmlFor="category">Category</FieldLabel>
+              {errors.name && (
+                <p className="text-xs text-destructive">{errors.name}</p>
+              )}
+            </div>
 
-                <Select
-                  value={category}
-                  onValueChange={(value) => {
-                    setCategory(value);
-                    clearError("category");
-                  }}
+            {/* Category */}
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+
+              <Select
+                value={category}
+                onValueChange={(value) => {
+                  setCategory(value ?? "");
+
+                  if (errors.category) {
+                    setErrors((current) => ({
+                      ...current,
+                      category: undefined,
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger
+                  id="category"
+                  className="w-full"
+                  aria-invalid={!!errors.category}
                 >
-                  <SelectTrigger id="category" aria-invalid={!!errors.category}>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
 
-                  <SelectContent>
-                    <SelectItem value="beauty">Beauty</SelectItem>
+                <SelectContent>
+                  <SelectItem value="Beauty">Beauty</SelectItem>
+                  <SelectItem value="Gifts">Gifts</SelectItem>
+                  <SelectItem value="Accessories">Accessories</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
 
-                    <SelectItem value="gifts">Gifts</SelectItem>
-
-                    <SelectItem value="accessories">Accessories</SelectItem>
-
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {errors.category ? (
-                  <p className="text-sm text-destructive">{errors.category}</p>
-                ) : (
-                  <FieldDescription>
-                    Choose the category that best matches this product.
-                  </FieldDescription>
-                )}
-              </Field>
-            </FieldGroup>
+              {errors.category && (
+                <p className="text-xs text-destructive">{errors.category}</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -243,128 +217,144 @@ export default function AddProductPage() {
             <CardTitle className="text-base">Pricing & Inventory</CardTitle>
 
             <p className="text-sm text-muted-foreground">
-              Set your product pricing and available stock.
+              Set the selling price, product cost, and available stock.
             </p>
           </CardHeader>
 
-          <CardContent>
-            <FieldGroup>
-              <div className="grid gap-5 sm:grid-cols-2">
-                {/* Selling Price */}
-                <Field>
-                  <FieldLabel htmlFor="price">Selling Price</FieldLabel>
+          <CardContent className="grid gap-5 sm:grid-cols-3">
+            {/* Selling Price */}
+            <div className="space-y-2">
+              <Label htmlFor="price">Selling Price</Label>
 
-                  <Input
-                    id="price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={price}
-                    onChange={(event) => {
-                      setPrice(event.target.value);
-                      clearError("price");
-                    }}
-                    placeholder="21.00"
-                    aria-invalid={!!errors.price}
-                  />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  $
+                </span>
 
-                  {errors.price ? (
-                    <p className="text-sm text-destructive">{errors.price}</p>
-                  ) : (
-                    <FieldDescription>
-                      The price customers will pay.
-                    </FieldDescription>
-                  )}
-                </Field>
+                <Input
+                  id="price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(event) => {
+                    setPrice(event.target.value);
 
-                {/* Product Cost */}
-                <Field>
-                  <FieldLabel htmlFor="cost">Product Cost</FieldLabel>
-
-                  <Input
-                    id="cost"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={cost}
-                    onChange={(event) => {
-                      setCost(event.target.value);
-                      clearError("cost");
-                    }}
-                    placeholder="6.00"
-                    aria-invalid={!!errors.cost}
-                  />
-
-                  {errors.cost ? (
-                    <p className="text-sm text-destructive">{errors.cost}</p>
-                  ) : (
-                    <FieldDescription>
-                      Your cost for purchasing or producing the product.
-                    </FieldDescription>
-                  )}
-                </Field>
-
-                {/* Stock */}
-                <Field>
-                  <FieldLabel htmlFor="stock">Stock Quantity</FieldLabel>
-
-                  <Input
-                    id="stock"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={stock}
-                    onChange={(event) => {
-                      setStock(event.target.value);
-                      clearError("stock");
-                    }}
-                    placeholder="50"
-                    aria-invalid={!!errors.stock}
-                  />
-
-                  {errors.stock ? (
-                    <p className="text-sm text-destructive">{errors.stock}</p>
-                  ) : (
-                    <FieldDescription>
-                      Number of units currently available.
-                    </FieldDescription>
-                  )}
-                </Field>
+                    if (errors.price) {
+                      setErrors((current) => ({
+                        ...current,
+                        price: undefined,
+                      }));
+                    }
+                  }}
+                  placeholder="0.00"
+                  className="pl-7"
+                  aria-invalid={!!errors.price}
+                />
               </div>
 
-              {/* Margin Preview */}
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Estimated Margin</p>
+              {errors.price && (
+                <p className="text-xs text-destructive">{errors.price}</p>
+              )}
+            </div>
 
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Calculated from selling price minus product cost.
-                    </p>
-                  </div>
+            {/* Cost */}
+            <div className="space-y-2">
+              <Label htmlFor="cost">Product Cost</Label>
 
-                  <div className="text-left sm:text-right">
-                    {margin !== null ? (
-                      <>
-                        <p className="text-2xl font-semibold tracking-tight tabular-nums">
-                          ${margin.toFixed(2)}
-                        </p>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  $
+                </span>
 
-                        {marginPercentage !== null && (
-                          <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                            {marginPercentage.toFixed(1)}% margin
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Enter pricing
-                      </p>
-                    )}
-                  </div>
-                </div>
+                <Input
+                  id="cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={cost}
+                  onChange={(event) => {
+                    setCost(event.target.value);
+
+                    if (errors.cost) {
+                      setErrors((current) => ({
+                        ...current,
+                        cost: undefined,
+                      }));
+                    }
+                  }}
+                  placeholder="0.00"
+                  className="pl-7"
+                  aria-invalid={!!errors.cost}
+                />
               </div>
-            </FieldGroup>
+
+              {errors.cost && (
+                <p className="text-xs text-destructive">{errors.cost}</p>
+              )}
+            </div>
+
+            {/* Stock */}
+            <div className="space-y-2">
+              <Label htmlFor="stock">Stock Quantity</Label>
+
+              <Input
+                id="stock"
+                type="number"
+                min="0"
+                step="1"
+                value={stock}
+                onChange={(event) => {
+                  setStock(event.target.value);
+
+                  if (errors.stock) {
+                    setErrors((current) => ({
+                      ...current,
+                      stock: undefined,
+                    }));
+                  }
+                }}
+                placeholder="0"
+                aria-invalid={!!errors.stock}
+              />
+
+              {errors.stock && (
+                <p className="text-xs text-destructive">{errors.stock}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Margin */}
+        <Card className="shadow-none">
+          <CardContent className="p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">Estimated Margin</p>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Based on the selling price and product cost.
+                </p>
+              </div>
+
+              <div className="sm:text-right">
+                <p
+                  className={`text-2xl font-semibold tracking-tight tabular-nums ${
+                    margin > 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : margin < 0
+                        ? "text-destructive"
+                        : "text-foreground"
+                  }`}
+                >
+                  ${margin.toFixed(2)}
+                </p>
+
+                <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                  {marginPercentage.toFixed(1)}% margin
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

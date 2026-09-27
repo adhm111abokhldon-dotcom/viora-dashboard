@@ -104,7 +104,7 @@ const recentOrders = [
     status: "Delivered",
   },
   {
-    id: "#1024",
+    id: "#1029",
     product: "Lipstick",
     amount: "$15.00",
     status: "Delivered",
@@ -254,7 +254,7 @@ export default function DashboardPage() {
           </CardHeader>
 
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+            <ChartContainer config={chartConfig} className="h-70 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={salesData}

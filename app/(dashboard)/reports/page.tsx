@@ -174,7 +174,7 @@ export default function ReportsPage() {
         </CardHeader>
 
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[320px] w-full">
+          <ChartContainer config={chartConfig} className="h-80 w-full">
             <BarChart
               data={salesData}
               margin={{
@@ -291,7 +291,7 @@ export default function ReportsPage() {
             <div className="flex flex-col items-center gap-6 sm:flex-row">
               <ChartContainer
                 config={chartConfig}
-                className="h-[220px] w-full max-w-[220px]"
+                className="h-55 w-full max-w-55"
               >
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent />} />

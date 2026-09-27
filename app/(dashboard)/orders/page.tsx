@@ -370,7 +370,7 @@ export default function OrdersPage() {
         <CardContent className="p-0">
           {/* Desktop Table */}
           <div className="hidden md:block">
-            <div className="max-h-[520px] overflow-y-auto">
+            <div className="max-h-130 overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow>
@@ -452,7 +452,7 @@ export default function OrdersPage() {
 
           {/* Mobile Orders */}
           <div className="md:hidden">
-            <div className="max-h-[560px] overflow-y-scroll">
+            <div className="max-h-140 overflow-y-scroll">
               <div className="divide-y">
                 {filteredOrders.length > 0 ? (
                   filteredOrders.map((order) => (
