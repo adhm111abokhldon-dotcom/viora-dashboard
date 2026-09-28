@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Calculator, ClipboardList, Save } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,10 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { createOrder, getProducts, type OrderStatus } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import AddProductLoading from "@/components/AddProductLoading";
+
 type FormErrors = {
   customer?: string;
   phone?: string;
@@ -30,81 +35,73 @@ type FormErrors = {
   status?: string;
 };
 
-const products = [
-  {
-    id: "1",
-    name: "LED Bear",
-    price: 21,
-    cost: 6,
-    stock: 50,
-  },
-  {
-    id: "2",
-    name: "Lipstick",
-    price: 15,
-    cost: 5,
-    stock: 24,
-  },
-  {
-    id: "3",
-    name: "Mini Perfume",
-    price: 18,
-    cost: 7,
-    stock: 8,
-  },
-  {
-    id: "4",
-    name: "Phone Stand",
-    price: 12,
-    cost: 4,
-    stock: 0,
-  },
-];
-
 export default function NewOrderPage() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
   const [customer, setCustomer] = useState("");
   const [phone, setPhone] = useState("");
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [price, setPrice] = useState("");
-  const [status, setStatus] = useState("pending");
-
+  const [status, setStatus] = useState<OrderStatus>("Pending");
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const selectedProduct = useMemo(
-    () => products.find((product) => product.id === productId),
-    [productId],
-  );
+  const { data, isLoading } = useQuery({
+    queryKey: ["products", "all"],
+    queryFn: () => getProducts(1, 100),
+  });
+
+  const products = data?.products ?? [];
+
+  const selectedProduct = products.find((product) => product._id === productId);
 
   const quantityNumber = Number(quantity);
   const priceNumber = Number(price);
 
-  const total = useMemo(() => {
-    if (!quantity || !price || quantityNumber <= 0 || priceNumber < 0) {
-      return 0;
-    }
+  const total =
+    quantityNumber > 0 && priceNumber > 0 ? quantityNumber * priceNumber : 0;
 
-    return quantityNumber * priceNumber;
-  }, [quantity, price, quantityNumber, priceNumber]);
+  const estimatedProfit =
+    selectedProduct && quantityNumber > 0 && priceNumber > 0
+      ? (priceNumber - selectedProduct.cost) * quantityNumber
+      : 0;
 
-  const estimatedProfit = useMemo(() => {
-    if (!selectedProduct || !quantity || quantityNumber <= 0) {
-      return 0;
-    }
+  const createOrderMutation = useMutation({
+    mutationFn: createOrder,
 
-    return (priceNumber - selectedProduct.cost) * quantityNumber;
-  }, [selectedProduct, quantity, quantityNumber, priceNumber]);
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+      router.push("/orders");
+    },
+  });
+  if (isLoading) return <AddProductLoading />;
+
+  function clearError(field: keyof FormErrors) {
+    setErrors((current) => ({
+      ...current,
+      [field]: undefined,
+    }));
+  }
+
+  function bindInput(field: keyof FormErrors, setter: (value: string) => void) {
+    return (event: React.ChangeEvent<HTMLInputElement>) => {
+      setter(event.target.value);
+      clearError(field);
+    };
+  }
 
   function handleProductChange(value: string) {
     setProductId(value);
 
-    const product = products.find((item) => item.id === value);
+    const product = products.find((product) => product._id === value);
 
-    if (product) {
-      setPrice(product.price.toString());
-    } else {
-      setPrice("");
-    }
+    setPrice(product ? String(product.price) : "");
 
     clearError("product");
     clearError("price");
@@ -127,20 +124,12 @@ export default function NewOrderPage() {
       nextErrors.product = "Please select a product.";
     }
 
-    if (
-      quantity === "" ||
-      quantityNumber <= 0 ||
-      !Number.isInteger(quantityNumber)
-    ) {
+    if (!quantity || quantityNumber <= 0 || !Number.isInteger(quantityNumber)) {
       nextErrors.quantity = "Quantity must be a positive whole number.";
     }
 
-    if (price === "" || priceNumber <= 0) {
+    if (!price || priceNumber <= 0) {
       nextErrors.price = "Price must be greater than 0.";
-    }
-
-    if (!status) {
-      nextErrors.status = "Please select an order status.";
     }
 
     if (selectedProduct && quantityNumber > selectedProduct.stock) {
@@ -153,30 +142,13 @@ export default function NewOrderPage() {
       return;
     }
 
-    const orderData = {
+    createOrderMutation.mutate({
       customer: customer.trim(),
       phone: phone.trim(),
       productId,
-      product: selectedProduct?.name,
       quantity: quantityNumber,
       price: priceNumber,
-      total,
-      profit: estimatedProfit,
-      status,
-    };
-
-    console.log("Order:", orderData);
-  }
-
-  function clearError(field: keyof FormErrors) {
-    if (!errors[field]) {
-      return;
-    }
-
-    setErrors((current) => ({
-      ...current,
-      [field]: undefined,
-    }));
+    });
   }
 
   return (
@@ -185,6 +157,7 @@ export default function NewOrderPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <Button
+            nativeButton={false}
             variant="outline"
             size="icon"
             className="mt-0.5 shrink-0"
@@ -236,10 +209,7 @@ export default function NewOrderPage() {
                   <Input
                     id="customer"
                     value={customer}
-                    onChange={(event) => {
-                      setCustomer(event.target.value);
-                      clearError("customer");
-                    }}
+                    onChange={bindInput("customer", setCustomer)}
                     placeholder="e.g. Ahmad Khalil"
                     aria-invalid={!!errors.customer}
                   />
@@ -262,10 +232,7 @@ export default function NewOrderPage() {
                     id="phone"
                     type="tel"
                     value={phone}
-                    onChange={(event) => {
-                      setPhone(event.target.value);
-                      clearError("phone");
-                    }}
+                    onChange={bindInput("phone", setPhone)}
                     placeholder="e.g. 03 123 456"
                     aria-invalid={!!errors.phone}
                   />
@@ -304,14 +271,20 @@ export default function NewOrderPage() {
                     onValueChange={(value) => handleProductChange(value ?? "")}
                   >
                     <SelectTrigger id="product" aria-invalid={!!errors.product}>
-                      <SelectValue placeholder="Select a product" />
+                      {/* بدون children هون كانت عم تعرض الـ id الخام؛
+                          هلق عم نعطيها النص الجاهز يلي بدنا نعرضه */}
+                      <SelectValue placeholder="Select a product">
+                        {selectedProduct
+                          ? `${selectedProduct.name} — $${selectedProduct.price}`
+                          : undefined}
+                      </SelectValue>
                     </SelectTrigger>
 
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem
-                          key={product.id}
-                          value={product.id}
+                          key={product._id}
+                          value={product._id}
                           disabled={product.stock === 0}
                         >
                           {product.name} — ${product.price}
@@ -342,10 +315,7 @@ export default function NewOrderPage() {
                     min="1"
                     step="1"
                     value={quantity}
-                    onChange={(event) => {
-                      setQuantity(event.target.value);
-                      clearError("quantity");
-                    }}
+                    onChange={bindInput("quantity", setQuantity)}
                     aria-invalid={!!errors.quantity}
                   />
 
@@ -373,10 +343,7 @@ export default function NewOrderPage() {
                     min="0"
                     step="0.01"
                     value={price}
-                    onChange={(event) => {
-                      setPrice(event.target.value);
-                      clearError("price");
-                    }}
+                    onChange={bindInput("price", setPrice)}
                     aria-invalid={!!errors.price}
                   />
 
@@ -394,23 +361,18 @@ export default function NewOrderPage() {
 
                   <Select
                     value={status}
-                    onValueChange={(value) => {
-                      setStatus(value ?? "");
-                      clearError("status");
-                    }}
+                    onValueChange={(value) =>
+                      setStatus((value ?? "Pending") as OrderStatus)
+                    }
                   >
                     <SelectTrigger id="status" aria-invalid={!!errors.status}>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
 
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-
-                      <SelectItem value="processing">Processing</SelectItem>
-
-                      <SelectItem value="delivered">Delivered</SelectItem>
-
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      {/* Cancelled متشالة: ما في منطق تنشئ طلب "ملغى" من الأساس */}
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Delivered">Delivered</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -501,6 +463,7 @@ export default function NewOrderPage() {
         {/* Actions */}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
+            nativeButton={false}
             type="button"
             variant="outline"
             render={<Link href="/orders" />}
@@ -509,9 +472,13 @@ export default function NewOrderPage() {
             Cancel
           </Button>
 
-          <Button type="submit" className="w-full sm:w-auto">
+          <Button
+            type="submit"
+            disabled={createOrderMutation.isPending}
+            className="w-full sm:w-auto"
+          >
             <Save className="size-4" />
-            Create Order
+            {createOrderMutation.isPending ? "Creating..." : "Create Order"}
           </Button>
         </div>
       </form>

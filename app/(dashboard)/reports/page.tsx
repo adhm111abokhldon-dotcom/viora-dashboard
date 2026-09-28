@@ -10,14 +10,19 @@ import {
   ShoppingBag,
   TrendingUp,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
+import { getReports } from "@/lib/api";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+
 import {
   Bar,
   BarChart,
@@ -28,62 +33,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-const salesData = [
-  { day: "Mon", sales: 85, profit: 42 },
-  { day: "Tue", sales: 120, profit: 58 },
-  { day: "Wed", sales: 95, profit: 46 },
-  { day: "Thu", sales: 160, profit: 78 },
-  { day: "Fri", sales: 135, profit: 65 },
-  { day: "Sat", sales: 190, profit: 91 },
-  { day: "Sun", sales: 245, profit: 108 },
-];
-
-const topProducts = [
-  {
-    name: "LED Bear",
-    orders: 18,
-    revenue: 378,
-    profit: 270,
-  },
-  {
-    name: "Lipstick",
-    orders: 12,
-    revenue: 180,
-    profit: 120,
-  },
-  {
-    name: "Mini Perfume",
-    orders: 8,
-    revenue: 144,
-    profit: 88,
-  },
-  {
-    name: "Phone Stand",
-    orders: 5,
-    revenue: 60,
-    profit: 40,
-  },
-];
-
-const orderStatusData = [
-  {
-    name: "Delivered",
-    value: 24,
-  },
-  {
-    name: "Pending",
-    value: 7,
-  },
-  {
-    name: "Processing",
-    value: 5,
-  },
-  {
-    name: "Cancelled",
-    value: 3,
-  },
-];
+import ReportsLoading from "@/components/ReportsLoading";
 
 const chartConfig = {
   sales: {
@@ -96,24 +46,20 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const statusColors = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-5)",
-];
+const statusColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-5)"];
 
 export default function ReportsPage() {
-  const totalSales = salesData.reduce((sum, item) => sum + item.sales, 0);
+  const { data: reports, isLoading } = useQuery({
+    queryKey: ["reports"],
+    queryFn: getReports,
+    throwOnError: true,
+  });
 
-  const totalProfit = salesData.reduce((sum, item) => sum + item.profit, 0);
+  if (isLoading) return <ReportsLoading />;
 
-  const totalOrders = orderStatusData.reduce(
-    (sum, item) => sum + item.value,
-    0,
-  );
+  if (!reports) return null;
 
-  const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+  const { summary, salesData, topProducts, orderStatus, snapshot } = reports;
 
   return (
     <div className="space-y-6">
@@ -132,34 +78,34 @@ export default function ReportsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ReportCard
           title="Total Sales"
-          value={`$${totalSales.toFixed(2)}`}
-          description="+12.5% vs previous period"
+          value={`$${summary.totalSales.toFixed(2)}`}
+          description="All active orders"
           icon={DollarSign}
           positive
         />
 
         <ReportCard
           title="Total Profit"
-          value={`$${totalProfit.toFixed(2)}`}
-          description="+8.2% vs previous period"
+          value={`$${summary.totalProfit.toFixed(2)}`}
+          description="Profit from active orders"
           icon={TrendingUp}
           positive
         />
 
         <ReportCard
           title="Total Orders"
-          value={totalOrders.toString()}
-          description="+6 orders vs previous period"
+          value={summary.totalOrders.toString()}
+          description="All active orders"
           icon={ShoppingBag}
           positive
         />
 
         <ReportCard
           title="Average Order"
-          value={`$${averageOrderValue.toFixed(2)}`}
-          description="-2.1% vs previous period"
+          value={`$${summary.averageOrderValue.toFixed(2)}`}
+          description="Average order value"
           icon={BarChart3}
-          positive={false}
+          positive
         />
       </div>
 
@@ -169,7 +115,7 @@ export default function ReportsPage() {
           <CardTitle className="text-base">Sales & Profit</CardTitle>
 
           <p className="text-sm text-muted-foreground">
-            Daily sales and profit performance.
+            Daily sales and profit performance over the last 7 days.
           </p>
         </CardHeader>
 
@@ -242,38 +188,46 @@ export default function ReportsPage() {
           </CardHeader>
 
           <CardContent className="p-0">
-            <div className="divide-y">
-              {topProducts.map((product, index) => (
-                <div
-                  key={product.name}
-                  className="flex items-center gap-4 px-5 py-4"
-                >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-sm font-medium tabular-nums">
-                    {index + 1}
+            {topProducts.length > 0 ? (
+              <div className="divide-y">
+                {topProducts.map((product, index) => (
+                  <div
+                    key={product.name}
+                    className="flex items-center gap-4 px-5 py-4"
+                  >
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-sm font-medium tabular-nums">
+                      {index + 1}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {product.name}
+                      </p>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {product.orders} orders
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-sm font-medium tabular-nums">
+                        ${product.revenue.toFixed(2)}
+                      </p>
+
+                      <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        +${product.profit.toFixed(2)} profit
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {product.name}
-                    </p>
-
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {product.orders} orders
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-sm font-medium tabular-nums">
-                      ${product.revenue.toFixed(2)}
-                    </p>
-
-                    <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      +${product.profit.toFixed(2)} profit
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-5 py-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No product sales yet.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -297,7 +251,7 @@ export default function ReportsPage() {
                   <ChartTooltip content={<ChartTooltipContent />} />
 
                   <Pie
-                    data={orderStatusData}
+                    data={orderStatus}
                     dataKey="value"
                     nameKey="name"
                     innerRadius={60}
@@ -305,7 +259,7 @@ export default function ReportsPage() {
                     paddingAngle={3}
                     strokeWidth={0}
                   >
-                    {orderStatusData.map((entry, index) => (
+                    {orderStatus.map((entry, index) => (
                       <Cell
                         key={entry.name}
                         fill={statusColors[index % statusColors.length]}
@@ -316,8 +270,11 @@ export default function ReportsPage() {
               </ChartContainer>
 
               <div className="w-full space-y-4">
-                {orderStatusData.map((item, index) => {
-                  const percentage = (item.value / totalOrders) * 100;
+                {orderStatus.map((item, index) => {
+                  const percentage =
+                    summary.totalOrders > 0
+                      ? (item.value / summary.totalOrders) * 100
+                      : 0;
 
                   return (
                     <div key={item.name} className="flex items-center gap-3">
@@ -362,21 +319,21 @@ export default function ReportsPage() {
             <SnapshotItem
               icon={Package}
               label="Delivered Orders"
-              value="24"
+              value={snapshot.deliveredOrders.toString()}
               description="Successfully completed"
             />
 
             <SnapshotItem
               icon={CheckCircle2}
               label="Delivery Rate"
-              value="77.4%"
+              value={`${snapshot.deliveryRate.toFixed(1)}%`}
               description="Of all created orders"
             />
 
             <SnapshotItem
               icon={TrendingUp}
               label="Profit Margin"
-              value="45.7%"
+              value={`${snapshot.profitMargin.toFixed(1)}%`}
               description="Average across sales"
             />
           </div>

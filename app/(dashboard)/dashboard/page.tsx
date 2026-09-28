@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
   Clock3,
@@ -36,110 +37,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
-
-const stats = [
-  {
-    title: "Today's Sales",
-    value: "$245.00",
-    change: "+12.5%",
-    description: "vs. yesterday",
-    icon: DollarSign,
-  },
-  {
-    title: "Today's Profit",
-    value: "$108.00",
-    change: "+8.2%",
-    description: "vs. yesterday",
-    icon: TrendingUp,
-  },
-  {
-    title: "Orders Today",
-    value: "12",
-    change: "+3",
-    description: "vs. yesterday",
-    icon: ShoppingBag,
-  },
-  {
-    title: "Pending Orders",
-    value: "4",
-    change: "-2",
-    description: "vs. yesterday",
-    icon: Clock3,
-  },
-];
-
-const salesData = [
-  { date: "Mon", sales: 85 },
-  { date: "Tue", sales: 120 },
-  { date: "Wed", sales: 95 },
-  { date: "Thu", sales: 160 },
-  { date: "Fri", sales: 135 },
-  { date: "Sat", sales: 190 },
-  { date: "Sun", sales: 245 },
-];
-
-const recentOrders = [
-  {
-    id: "#1024",
-    product: "LED Bear",
-    amount: "$21.00",
-    status: "Delivered",
-  },
-  {
-    id: "#1023",
-    product: "Lipstick",
-    amount: "$15.00",
-    status: "Pending",
-  },
-  {
-    id: "#1022",
-    product: "LED Bear",
-    amount: "$21.00",
-    status: "Cancelled",
-  },
-  {
-    id: "#1021",
-    product: "Lipstick",
-    amount: "$15.00",
-    status: "Delivered",
-  },
-  {
-    id: "#1029",
-    product: "Lipstick",
-    amount: "$15.00",
-    status: "Delivered",
-  },
-  {
-    id: "#1025",
-    product: "Lipstick",
-    amount: "$15.00",
-    status: "Delivered",
-  },
-  {
-    id: "#1026",
-    product: "Lipstick",
-    amount: "$15.00",
-    status: "Delivered",
-  },
-];
-
-const orderStatus = [
-  {
-    label: "Delivered",
-    value: 24,
-    percentage: 71,
-  },
-  {
-    label: "Pending",
-    value: 7,
-    percentage: 21,
-  },
-  {
-    label: "Cancelled",
-    value: 3,
-    percentage: 8,
-  },
-];
+import { getDashboard, OrderStatus, updateOrderStatus } from "@/lib/api";
+import OrderActions from "@/components/OrderActions";
 
 const statusStyles: Record<string, string> = {
   Delivered:
@@ -148,9 +47,6 @@ const statusStyles: Record<string, string> = {
   Pending:
     "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
 
-  Processing:
-    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-400",
-
   Cancelled:
     "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400",
 };
@@ -158,7 +54,6 @@ const statusStyles: Record<string, string> = {
 const statusBarStyles: Record<string, string> = {
   Delivered: "bg-emerald-500",
   Pending: "bg-amber-500",
-  Processing: "bg-blue-500",
   Cancelled: "bg-red-500",
 };
 
@@ -169,7 +64,144 @@ const chartConfig = {
   },
 };
 
+function calculatePercentageChange(today: number, yesterday: number) {
+  if (yesterday === 0) {
+    return today === 0 ? "0%" : "+100%";
+  }
+
+  const change = ((today - yesterday) / yesterday) * 100;
+
+  return `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`;
+}
+
+function calculateNumberChange(today: number, yesterday: number) {
+  const change = today - yesterday;
+
+  return `${change >= 0 ? "+" : ""}${change}`;
+}
+
 export default function DashboardPage() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: getDashboard,
+  });
+  const queryClient = useQueryClient();
+
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: ({
+      orderId,
+      status,
+    }: {
+      orderId: string;
+      status: OrderStatus;
+    }) => updateOrderStatus(orderId, status),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["dashboard"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <div className="h-8 w-32 animate-pulse rounded-md bg-muted" />
+          <div className="h-4 w-72 max-w-full animate-pulse rounded-md bg-muted" />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-32 animate-pulse rounded-xl border bg-card"
+            />
+          ))}
+        </div>
+
+        <div className="h-96 animate-pulse rounded-xl border bg-card" />
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+          <div className="h-80 animate-pulse rounded-xl border bg-card" />
+          <div className="h-80 animate-pulse rounded-xl border bg-card" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="flex min-h-100 items-center justify-center">
+        <p className="text-sm text-muted-foreground">
+          Failed to load dashboard.
+        </p>
+      </div>
+    );
+  }
+  function handleStatusChange(orderId: string, status: OrderStatus) {
+    updateOrderStatusMutation.mutate({
+      orderId,
+      status,
+    });
+  }
+
+  const { stats, salesData, orderStatus, recentOrders } = data;
+
+  const dashboardStats = [
+    {
+      title: "Today's Sales",
+      value: `$${stats.todaySales.toFixed(2)}`,
+      change: calculatePercentageChange(stats.todaySales, stats.yesterdaySales),
+      description: "vs. yesterday",
+      icon: DollarSign,
+      isPositive: stats.todaySales >= stats.yesterdaySales,
+    },
+    {
+      title: "Today's Profit",
+      value: `$${stats.todayProfit.toFixed(2)}`,
+      change: calculatePercentageChange(
+        stats.todayProfit,
+        stats.yesterdayProfit,
+      ),
+      description: "vs. yesterday",
+      icon: TrendingUp,
+      isPositive: stats.todayProfit >= stats.yesterdayProfit,
+    },
+    {
+      title: "Orders Today",
+      value: stats.todayOrders.toString(),
+      change: calculateNumberChange(stats.todayOrders, stats.yesterdayOrders),
+      description: "vs. yesterday",
+      icon: ShoppingBag,
+      isPositive: stats.todayOrders >= stats.yesterdayOrders,
+    },
+    {
+      title: "Pending Orders",
+      value: stats.todayPendingOrders.toString(),
+      change: calculateNumberChange(
+        stats.todayPendingOrders,
+        stats.yesterdayPendingOrders,
+      ),
+      description: "vs. yesterday",
+      icon: Clock3,
+      isPositive: stats.todayPendingOrders <= stats.yesterdayPendingOrders,
+    },
+  ];
+
+  const totalStatusOrders = orderStatus.reduce(
+    (total, status) => total + status.value,
+    0,
+  );
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -187,7 +219,7 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat, index) => {
+        {dashboardStats.map((stat, index) => {
           const Icon = stat.icon;
 
           return (
@@ -219,7 +251,13 @@ export default function DashboardPage() {
                   </div>
 
                   <p className="mt-3 text-xs">
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    <span
+                      className={`font-medium ${
+                        stat.isPositive
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-red-600 dark:text-red-400"
+                      }`}
+                    >
                       {stat.change}
                     </span>{" "}
                     <span className="text-muted-foreground">
@@ -335,32 +373,43 @@ export default function DashboardPage() {
 
             <CardContent>
               <div className="space-y-5">
-                {orderStatus.map((item) => (
-                  <div key={item.label} className="space-y-2">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={`size-2 shrink-0 rounded-full ${statusBarStyles[item.label]}`}
-                        />
+                {orderStatus.map((item) => {
+                  const percentage =
+                    totalStatusOrders === 0
+                      ? 0
+                      : Math.round((item.value / totalStatusOrders) * 100);
 
-                        <span className="truncate">{item.label}</span>
+                  return (
+                    <div key={item.label} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className={`size-2 shrink-0 rounded-full ${
+                              statusBarStyles[item.label]
+                            }`}
+                          />
+
+                          <span className="truncate">{item.label}</span>
+                        </div>
+
+                        <span className="font-medium tabular-nums">
+                          {item.value}
+                        </span>
                       </div>
 
-                      <span className="font-medium tabular-nums">
-                        {item.value}
-                      </span>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            statusBarStyles[item.label]
+                          }`}
+                          style={{
+                            width: `${percentage}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full transition-all ${statusBarStyles[item.label]}`}
-                        style={{
-                          width: `${item.percentage}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -390,7 +439,7 @@ export default function DashboardPage() {
 
             <CardContent className="p-0">
               {/* Desktop Table */}
-              <div className="hidden md:block max-h-100 overflow-y-scroll">
+              <div className="hidden max-h-100 overflow-y-scroll md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -416,9 +465,9 @@ export default function DashboardPage() {
 
                   <TableBody>
                     {recentOrders.map((order) => (
-                      <TableRow key={order.id}>
+                      <TableRow key={order._id}>
                         <TableCell className="ps-6 font-medium tabular-nums">
-                          {order.id}
+                          #{order._id.slice(-6)}
                         </TableCell>
 
                         <TableCell className="text-muted-foreground">
@@ -426,7 +475,7 @@ export default function DashboardPage() {
                         </TableCell>
 
                         <TableCell className="font-medium tabular-nums">
-                          {order.amount}
+                          ${order.total.toFixed(2)}
                         </TableCell>
 
                         <TableCell>
@@ -439,14 +488,13 @@ export default function DashboardPage() {
                         </TableCell>
 
                         <TableCell className="pr-6">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            aria-label={`Actions for ${order.id}`}
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
+                          <OrderActions
+                            order={order}
+                            onStatusChange={handleStatusChange}
+                            isUpdatingStatus={
+                              updateOrderStatusMutation.isPending
+                            }
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -455,13 +503,16 @@ export default function DashboardPage() {
               </div>
 
               {/* Mobile Cards */}
-              <div className="space-y-2 p-4 md:hidden max-h-70 overflow-y-scroll">
+              <div className="max-h-70 space-y-2 overflow-y-scroll p-4 md:hidden">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="rounded-lg border bg-card p-4">
+                  <div
+                    key={order._id}
+                    className="rounded-lg border bg-card p-4"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium tabular-nums">
-                          {order.id}
+                          #{order._id.slice(-6)}
                         </p>
 
                         <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -469,19 +520,16 @@ export default function DashboardPage() {
                         </p>
                       </div>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 shrink-0"
-                        aria-label={`Actions for ${order.id}`}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
+                      <OrderActions
+                        order={order}
+                        onStatusChange={handleStatusChange}
+                        isUpdatingStatus={updateOrderStatusMutation.isPending}
+                      />
                     </div>
 
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <span className="font-medium tabular-nums">
-                        {order.amount}
+                        ${order.total.toFixed(2)}
                       </span>
 
                       <Badge

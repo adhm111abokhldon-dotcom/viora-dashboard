@@ -9,54 +9,18 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import Link from "next/link";
-
-const products = [
-  {
-    id: "1",
-    name: "LED Bear",
-    category: "Gifts",
-    price: 21,
-    cost: 6,
-    stock: 50,
-  },
-  {
-    id: "2",
-    name: "Lipstick",
-    category: "Beauty",
-    price: 15,
-    cost: 5,
-    stock: 24,
-  },
-  {
-    id: "3",
-    name: "Mini Perfume",
-    category: "Beauty",
-    price: 18,
-    cost: 7,
-    stock: 8,
-  },
-  {
-    id: "4",
-    name: "Phone Stand",
-    category: "Accessories",
-    price: 12,
-    cost: 4,
-    stock: 0,
-  },
-];
+import { deleteProduct, getProducts, Product } from "@/lib/api";
+import { ProductActions } from "@/components/ProductActions";
+import { Pagination } from "@/components/ui/Pagination";
+import ProductsLoading from "@/components/ProductsLoading";
 
 const containerVariants = {
   hidden: {},
@@ -105,41 +69,44 @@ function getStockStatus(stock: number) {
     dotClassName: "bg-emerald-500",
   };
 }
-
-function ProductActions() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            aria-label="Product actions"
-          >
-            <MoreHorizontal className="size-4" />
-          </Button>
-        }
-      ></DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem>
-          <Pencil className="size-4" />
-          Edit
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem className="text-destructive focus:text-destructive">
-          <Trash2 className="size-4" />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export default function ProductsPage() {
+  const [page, setPage] = useState(1);
+  const queryClient = useQueryClient();
+
+  const deleteProductMutation = useMutation({
+    mutationFn: deleteProduct,
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+    },
+  });
+
+  const limit = 10;
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["products", page, limit],
+    queryFn: () => getProducts(page, limit),
+  });
+
+  const products = data?.products ?? [];
+  const pagination = data?.pagination;
+
+  if (isLoading) {
+    return <ProductsLoading />;
+  }
+
+  if (isError) {
+    return (
+      <div className="mx-auto flex min-h-[400px] w-full max-w-[1600px] items-center justify-center">
+        <p className="text-sm text-destructive">
+          {error instanceof Error ? error.message : "Failed to load products."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       variants={containerVariants}
@@ -161,7 +128,9 @@ export default function ProductsPage() {
             Manage your products, pricing, and inventory.
           </p>
         </div>
+
         <Button
+          nativeButton={false}
           render={<Link href="/products/add-product" />}
           className="w-full sm:w-auto"
         >
@@ -182,7 +151,7 @@ export default function ProductsPage() {
               <p className="text-sm text-muted-foreground">Total Products</p>
 
               <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-                {products.length}
+                {pagination?.totalProducts ?? 0}
               </p>
             </div>
           </CardContent>
@@ -193,7 +162,10 @@ export default function ProductsPage() {
             <p className="text-sm text-muted-foreground">Total Stock</p>
 
             <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-              {products.reduce((total, product) => total + product.stock, 0)}
+              {products.reduce(
+                (total: number, product: Product) => total + product.stock,
+                0,
+              )}
             </p>
           </CardContent>
         </Card>
@@ -203,7 +175,10 @@ export default function ProductsPage() {
             <p className="text-sm text-muted-foreground">Low / Out of Stock</p>
 
             <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-              {products.filter((product) => product.stock <= 10).length}
+              {
+                products.filter((product: Product) => product.stock <= 10)
+                  .length
+              }
             </p>
           </CardContent>
         </Card>
@@ -242,7 +217,7 @@ export default function ProductsPage() {
                 <span />
               </div>
 
-              {products.map((product) => {
+              {products.map((product: Product) => {
                 const margin = product.price - product.cost;
                 const marginPercentage = (margin / product.price) * 100;
 
@@ -250,7 +225,7 @@ export default function ProductsPage() {
 
                 return (
                   <div
-                    key={product.id}
+                    key={product._id}
                     className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_48px] items-center border-b px-6 py-4 last:border-b-0"
                   >
                     <div className="flex min-w-0 items-center gap-3">
@@ -303,7 +278,13 @@ export default function ProductsPage() {
                       </div>
                     </div>
 
-                    <ProductActions />
+                    <ProductActions
+                      product={product}
+                      onDelete={(productId) =>
+                        deleteProductMutation.mutate(productId)
+                      }
+                      isDeleting={deleteProductMutation.isPending}
+                    />
                   </div>
                 );
               })}
@@ -311,14 +292,14 @@ export default function ProductsPage() {
 
             {/* Mobile */}
             <div className="divide-y md:hidden">
-              {products.map((product) => {
+              {products.map((product: Product) => {
                 const margin = product.price - product.cost;
                 const marginPercentage = (margin / product.price) * 100;
 
                 const stockStatus = getStockStatus(product.stock);
 
                 return (
-                  <div key={product.id} className="space-y-4 p-5">
+                  <div key={product._id} className="space-y-4 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40">
@@ -336,7 +317,13 @@ export default function ProductsPage() {
                         </div>
                       </div>
 
-                      <ProductActions />
+                      <ProductActions
+                        product={product}
+                        onDelete={(productId) =>
+                          deleteProductMutation.mutate(productId)
+                        }
+                        isDeleting={deleteProductMutation.isPending}
+                      />
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
@@ -385,6 +372,16 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={pagination?.currentPage ?? page}
+        totalPages={pagination?.totalPages ?? 1}
+        hasPreviousPage={pagination?.hasPreviousPage ?? false}
+        hasNextPage={pagination?.hasNextPage ?? false}
+        onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
+        onNext={() => setPage((current) => current + 1)}
+      />
     </motion.div>
   );
 }

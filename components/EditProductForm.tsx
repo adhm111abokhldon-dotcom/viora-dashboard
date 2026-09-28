@@ -16,9 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createProduct } from "@/lib/api";
+
+import { Product, updateProduct } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import AddProductLoading from "@/components/AddProductLoading";
 
 type FormErrors = {
   name?: string;
@@ -28,29 +28,19 @@ type FormErrors = {
   stock?: string;
 };
 
-export default function AddProductPage() {
+type EditProductFormProps = {
+  product: Product;
+};
+
+export default function EditProductForm({ product }: EditProductFormProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const createProductMutation = useMutation({
-    mutationFn: createProduct,
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
-      setName("");
-      setCategory("");
-      setPrice("");
-      setCost("");
-      setStock("");
-      router.push("/products");
-    },
-  });
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [price, setPrice] = useState("");
-  const [cost, setCost] = useState("");
-  const [stock, setStock] = useState("");
+  const [name, setName] = useState(product.name);
+  const [category, setCategory] = useState(product.category);
+  const [price, setPrice] = useState(String(product.price));
+  const [cost, setCost] = useState(String(product.cost));
+  const [stock, setStock] = useState(String(product.stock));
 
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -67,7 +57,23 @@ export default function AddProductPage() {
     return (margin / sellingPrice) * 100;
   }, [margin, sellingPrice]);
 
-  if (createProductMutation.isPending) return <AddProductLoading />;
+  const updateProductMutation = useMutation({
+    mutationFn: (data: {
+      name: string;
+      category: string;
+      price: number;
+      cost: number;
+      stock: number;
+    }) => updateProduct(product._id, data),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+      router.push("/products");
+    },
+  });
+
   function validate() {
     const newErrors: FormErrors = {};
 
@@ -109,20 +115,17 @@ export default function AddProductPage() {
 
     if (!validate()) return;
 
-    const productData = {
+    updateProductMutation.mutate({
       name: name.trim(),
       category,
       price: sellingPrice,
       cost: productCost,
       stock: Number(stock),
-    };
-
-    createProductMutation.mutate(productData);
+    });
   }
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
-      {/* Header */}
       <div className="space-y-3">
         <Button
           nativeButton={false}
@@ -137,17 +140,16 @@ export default function AddProductPage() {
 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Add Product
+            Edit Product
           </h1>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            Add a new product to your inventory.
+            Update your product information.
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
         <Card className="shadow-none">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -159,14 +161,13 @@ export default function AddProductPage() {
                 <CardTitle className="text-base">Basic Information</CardTitle>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Enter the basic details of your product.
+                  Update the basic details of your product.
                 </p>
               </div>
             </div>
           </CardHeader>
 
           <CardContent className="grid gap-5 sm:grid-cols-2">
-            {/* Product Name */}
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="name">Product Name</Label>
 
@@ -183,7 +184,6 @@ export default function AddProductPage() {
                     }));
                   }
                 }}
-                placeholder="e.g. LED Bear"
                 aria-invalid={!!errors.name}
               />
 
@@ -192,7 +192,6 @@ export default function AddProductPage() {
               )}
             </div>
 
-            {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
 
@@ -232,18 +231,16 @@ export default function AddProductPage() {
           </CardContent>
         </Card>
 
-        {/* Pricing & Inventory */}
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle className="text-base">Pricing & Inventory</CardTitle>
 
             <p className="text-sm text-muted-foreground">
-              Set the selling price, product cost, and available stock.
+              Update the selling price, product cost, and available stock.
             </p>
           </CardHeader>
 
           <CardContent className="grid gap-5 sm:grid-cols-3">
-            {/* Selling Price */}
             <div className="space-y-2">
               <Label htmlFor="price">Selling Price</Label>
 
@@ -268,7 +265,6 @@ export default function AddProductPage() {
                       }));
                     }
                   }}
-                  placeholder="0.00"
                   className="pl-7"
                   aria-invalid={!!errors.price}
                 />
@@ -279,7 +275,6 @@ export default function AddProductPage() {
               )}
             </div>
 
-            {/* Cost */}
             <div className="space-y-2">
               <Label htmlFor="cost">Product Cost</Label>
 
@@ -304,7 +299,6 @@ export default function AddProductPage() {
                       }));
                     }
                   }}
-                  placeholder="0.00"
                   className="pl-7"
                   aria-invalid={!!errors.cost}
                 />
@@ -315,7 +309,6 @@ export default function AddProductPage() {
               )}
             </div>
 
-            {/* Stock */}
             <div className="space-y-2">
               <Label htmlFor="stock">Stock Quantity</Label>
 
@@ -335,7 +328,6 @@ export default function AddProductPage() {
                     }));
                   }
                 }}
-                placeholder="0"
                 aria-invalid={!!errors.stock}
               />
 
@@ -346,7 +338,6 @@ export default function AddProductPage() {
           </CardContent>
         </Card>
 
-        {/* Margin */}
         <Card className="shadow-none">
           <CardContent className="p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -379,10 +370,22 @@ export default function AddProductPage() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
+        {updateProductMutation.isError && (
+          <p className="text-sm text-destructive">
+            {updateProductMutation.error instanceof Error
+              ? updateProductMutation.error.message
+              : "Failed to update product."}
+          </p>
+        )}
+
+        {updateProductMutation.isSuccess && (
+          <p className="text-sm text-emerald-600 dark:text-emerald-400">
+            Product updated successfully.
+          </p>
+        )}
+
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
-            nativeButton={false}
             type="button"
             variant="outline"
             render={<Link href="/products" />}
@@ -393,11 +396,11 @@ export default function AddProductPage() {
 
           <Button
             type="submit"
+            disabled={updateProductMutation.isPending}
             className="w-full sm:w-auto"
-            disabled={createProductMutation.isPending}
           >
             <Save className="size-4" />
-            {createProductMutation.isPending ? "Saving..." : "Save Product"}
+            {updateProductMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </form>
