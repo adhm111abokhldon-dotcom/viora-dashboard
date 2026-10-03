@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Laptop, Moon, Sun } from "lucide-react";
+import { Check, Moon, Sparkles, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useTranslations } from "next-intl";
 
 import {
   DropdownMenu,
@@ -15,23 +16,28 @@ import { Button } from "@/components/ui/button";
 const themes = [
   {
     value: "light",
-    label: "Light",
+    labelKey: "light",
     icon: Sun,
   },
   {
     value: "dark",
-    label: "Dark",
+    labelKey: "dark",
     icon: Moon,
   },
   {
-    value: "system",
-    label: "System",
-    icon: Laptop,
+    value: "viora",
+    labelKey: "viora",
+    icon: Sparkles,
   },
 ];
 
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
+  const t = useTranslations("theme");
+
+  const active = themes.find((item) => item.value === theme) ?? themes[0];
+  const ActiveIcon = active.icon;
+  const activeLabel = t(active.labelKey);
 
   return (
     <DropdownMenu>
@@ -41,11 +47,9 @@ export function ThemeSwitcher() {
             variant="ghost"
             size="icon"
             className="size-9"
-            aria-label="Change theme"
+            aria-label={t("label", { current: activeLabel })}
           >
-            <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-
-            <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <ActiveIcon className="size-4" />
           </Button>
         }
       ></DropdownMenuTrigger>
@@ -60,10 +64,11 @@ export function ThemeSwitcher() {
               key={item.value}
               onClick={() => setTheme(item.value)}
               className="gap-2"
+              aria-checked={isActive}
             >
               <Icon className="size-4" />
 
-              <span className="flex-1">{item.label}</span>
+              <span className="flex-1">{t(item.labelKey)}</span>
 
               {isActive && <Check className="size-4 text-primary" />}
             </DropdownMenuItem>

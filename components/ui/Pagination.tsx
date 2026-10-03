@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Button } from "@/components/ui/button";
 
 type PaginationProps = {
@@ -19,10 +21,12 @@ export function Pagination({
   onPrevious,
   onNext,
 }: PaginationProps) {
+  const t = useTranslations("pagination");
+
   return (
     <div className="flex items-center justify-between border-t pt-4">
       <p className="text-sm text-muted-foreground">
-        Page {currentPage} of {totalPages}
+        {t("pageOf", { current: currentPage, total: totalPages })}
       </p>
 
       <div className="flex items-center gap-2">
@@ -31,11 +35,11 @@ export function Pagination({
           disabled={!hasPreviousPage}
           onClick={onPrevious}
         >
-          Previous
+          {t("previous")}
         </Button>
 
         <Button variant="outline" disabled={!hasNextPage} onClick={onNext}>
-          Next
+          {t("next")}
         </Button>
       </div>
     </div>

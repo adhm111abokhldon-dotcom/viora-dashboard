@@ -1,12 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import {
-  CheckCircle2,
-  Clock3,
-  MoreHorizontal,
-  XCircle,
-} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { CheckCircle2, MoreHorizontal, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +12,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { Link } from "@/i18n/navigation";
 import type { Order, OrderStatus } from "@/lib/api";
+import { orderStatusText as statusStyles } from "@/lib/status";
 
 type OrderActionsProps = {
   order: Order;
@@ -25,17 +22,13 @@ type OrderActionsProps = {
   isUpdatingStatus: boolean;
 };
 
-const statusStyles: Record<OrderStatus, string> = {
-  Pending: "text-amber-600 dark:text-amber-400",
-  Delivered: "text-emerald-600 dark:text-emerald-400",
-  Cancelled: "text-red-600 dark:text-red-400",
-};
-
 export default function OrderActions({
   order,
   onStatusChange,
   isUpdatingStatus,
 }: OrderActionsProps) {
+  const t = useTranslations("orders.actions");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -44,7 +37,7 @@ export default function OrderActions({
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label={`Actions for order ${order._id}`}
+            aria-label={t("aria", { id: order._id })}
             disabled={isUpdatingStatus}
           />
         }
@@ -53,49 +46,59 @@ export default function OrderActions({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem
-          render={<Link href={`/orders/${order._id}/edit`} />}
-        >
-          Edit Order
-        </DropdownMenuItem>
+        {order.status === "Pending" && (
+          <>
+            <DropdownMenuItem
+              render={<Link href={`/orders/${order._id}/edit`} />}
+            >
+              {t("edit")}
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+          </>
+        )}
+
+        {order.status === "Pending" && (
+          <>
+            <DropdownMenuItem
+              disabled={isUpdatingStatus}
+              onClick={() => onStatusChange(order._id, "Delivered")}
+            >
+              <CheckCircle2 className={`size-4 ${statusStyles.Delivered}`} />
+              {t("markDelivered")}
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              disabled={isUpdatingStatus}
+              onClick={() => onStatusChange(order._id, "Cancelled")}
+            >
+              <XCircle className={`size-4 ${statusStyles.Cancelled}`} />
+              {t("cancel")}
+            </DropdownMenuItem>
+          </>
+        )}
+
+        {order.status === "Delivered" && (
+          <DropdownMenuItem
+            disabled={isUpdatingStatus}
+            onClick={() => onStatusChange(order._id, "Cancelled")}
+          >
+            <XCircle className={`size-4 ${statusStyles.Cancelled}`} />
+            {t("cancel")}
+          </DropdownMenuItem>
+        )}
+
+        {order.status === "Cancelled" && (
+          <DropdownMenuItem disabled>{t("noChanges")}</DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          disabled={order.status === "Pending" || isUpdatingStatus}
-          onClick={() => onStatusChange(order._id, "Pending")}
-        >
-          <Clock3 className={`size-4 ${statusStyles.Pending}`} />
-          Mark as Pending
-        </DropdownMenuItem>
-
-        <DropdownMenuItem
-          disabled={order.status === "Delivered" || isUpdatingStatus}
-          onClick={() => onStatusChange(order._id, "Delivered")}
-        >
-          <CheckCircle2
-            className={`size-4 ${statusStyles.Delivered}`}
-          />
-          Mark as Delivered
-        </DropdownMenuItem>
-
-        <DropdownMenuItem
-          disabled={order.status === "Cancelled" || isUpdatingStatus}
-          onClick={() => onStatusChange(order._id, "Cancelled")}
-        >
-          <XCircle className={`size-4 ${statusStyles.Cancelled}`} />
-          Cancel Order
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          render={
-            <Link href={`/orders/${order._id}/delete`} />
-          }
+          render={<Link href={`/orders/${order._id}/delete`} />}
           className="text-destructive focus:text-destructive"
         >
-          Delete Order
+          {t("delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

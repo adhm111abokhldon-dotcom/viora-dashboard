@@ -56,9 +56,9 @@ export default function ReportsLoading() {
                   <Skeleton className="h-3 w-20" />
                 </div>
 
-                <div className="space-y-2 text-right">
-                  <Skeleton className="ml-auto h-4 w-16" />
-                  <Skeleton className="ml-auto h-3 w-20" />
+                <div className="space-y-2 text-end">
+                  <Skeleton className="ms-auto h-4 w-16" />
+                  <Skeleton className="ms-auto h-3 w-20" />
                 </div>
               </div>
             ))}

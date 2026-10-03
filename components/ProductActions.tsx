@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Product } from "@/lib/api";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 export function ProductActions({
   product,
   onDelete,
@@ -21,6 +22,8 @@ export function ProductActions({
   onDelete: (productId: string) => void;
   isDeleting: boolean;
 }) {
+  const t = useTranslations("products.actions");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -29,7 +32,7 @@ export function ProductActions({
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label="Product actions"
+            aria-label={t("aria")}
           >
             <MoreHorizontal className="size-4" />
           </Button>
@@ -44,7 +47,7 @@ export function ProductActions({
               className="w-40 flex items-center gap-1"
             >
               <Pencil className="size-4" />
-              Edit
+              {t("edit")}
             </Link>
           }
         ></DropdownMenuItem>
@@ -57,7 +60,7 @@ export function ProductActions({
           disabled={isDeleting}
         >
           <Trash2 className="size-4" />
-          {isDeleting ? "Deleting..." : "Delete"}
+          {isDeleting ? t("deleting") : t("delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

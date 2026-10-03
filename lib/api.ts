@@ -9,6 +9,7 @@ export type Product = {
   updatedAt: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export type ProductsResponse = {
   products: Product[];
   pagination: {
@@ -19,17 +20,26 @@ export type ProductsResponse = {
     hasNextPage: boolean;
     hasPreviousPage: boolean;
   };
+  stats: {
+    totalProducts: number;
+    totalStock: number;
+    lowStockCount: number;
+  };
 };
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function getProducts(
   page: number,
   limit: number,
+  search = "",
 ): Promise<ProductsResponse> {
-  const response = await fetch(
-    `${API_URL}/products?page=${page}&limit=${limit}`,
-  );
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (search) params.set("search", search);
+
+  const response = await fetch(`${API_URL}/products?${params}`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch products");
@@ -105,19 +115,34 @@ export async function updateProduct(
 
 export type OrderStatus = "Pending" | "Delivered" | "Cancelled";
 
+export type OrderItem = {
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number; // السعر الفعلي بعد المكاسرة
+  unitCost: number; // كلفة المنتج وقت الأوردر
+};
+
 export type Order = {
   _id: string;
   customer: string;
   phone: string;
-  productId: string;
-  product: string;
-  quantity: number;
-  price: number;
+  items: OrderItem[];
+  deliveryCharged: number; // اللي دفعو الزبون كتوصيل
+  deliveryCost: number; // اللي دفعتو لشركة التوصيل
   total: number;
   profit: number;
   status: OrderStatus;
   createdAt: string;
   updatedAt: string;
+};
+
+export type OrdersStats = {
+  totalOrders: number;
+  pendingOrders: number;
+  deliveredOrders: number;
+  revenue: number;
+  profit: number;
 };
 
 export type OrdersResponse = {
@@ -130,24 +155,55 @@ export type OrdersResponse = {
     hasNextPage: boolean;
     hasPreviousPage: boolean;
   };
+  stats: OrdersStats;
+};
+
+export type CreateOrderItem = {
+  productId: string;
+  quantity: number;
+  unitPrice: number;
 };
 
 export type CreateOrderData = {
   customer: string;
   phone: string;
-  productId: string;
-  quantity: number;
-  price: number;
+  items: CreateOrderItem[];
+  deliveryCharged: number;
+  deliveryCost: number;
+};
+
+// بيرجّع رسالة السيرفر (مثلاً "Not enough stock for ...") بدل رسالة عامة
+async function errorMessage(response: Response, fallback: string) {
+  try {
+    const data = await response.json();
+    return data.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export type OrdersQuery = {
+  search?: string;
+  status?: string;
 };
 
 export async function getOrders(
   page: number,
   limit: number,
+  { search, status }: OrdersQuery = {},
 ): Promise<OrdersResponse> {
-  const response = await fetch(`${API_URL}/orders?page=${page}&limit=${limit}`);
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (search) params.set("search", search);
+  if (status && status !== "all") params.set("status", status);
+
+  const response = await fetch(`${API_URL}/orders?${params}`);
 
   if (!response.ok) {
-    throw new Error("Failed to fetch orders");
+    throw new Error(await errorMessage(response, "Failed to fetch orders"));
   }
 
   return response.json();
@@ -173,7 +229,7 @@ export async function createOrder(orderData: CreateOrderData): Promise<Order> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create order");
+    throw new Error(await errorMessage(response, "Failed to create order"));
   }
 
   return response.json();
@@ -192,7 +248,9 @@ export async function updateOrderStatus(
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update order status");
+    throw new Error(
+      await errorMessage(response, "Failed to update order status"),
+    );
   }
 
   return response.json();
@@ -221,7 +279,7 @@ export async function updateOrder(
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update order");
+    throw new Error(await errorMessage(response, "Failed to update order"));
   }
 
   return response.json();
@@ -229,6 +287,7 @@ export async function updateOrder(
 
 // Reports
 export type ReportSalesData = {
+  date: string;
   day: string;
   sales: number;
   profit: number;
@@ -236,6 +295,7 @@ export type ReportSalesData = {
 
 export type ReportTopProduct = {
   name: string;
+  units: number;
   orders: number;
   revenue: number;
   profit: number;
@@ -247,11 +307,21 @@ export type ReportOrderStatus = {
 };
 
 export type ReportsResponse = {
+  range: number;
+
   summary: {
     totalSales: number;
     totalProfit: number;
     totalOrders: number;
+    activeOrders: number;
     averageOrderValue: number;
+    pendingOrders: number;
+    deliveredOrders: number;
+    cancelledOrders: number;
+    deliveryRevenue: number;
+    deliveryCost: number;
+    profitMargin: number;
+    deliveryRate: number;
   };
 
   salesData: ReportSalesData[];
@@ -259,16 +329,10 @@ export type ReportsResponse = {
   topProducts: ReportTopProduct[];
 
   orderStatus: ReportOrderStatus[];
-
-  snapshot: {
-    deliveredOrders: number;
-    deliveryRate: number;
-    profitMargin: number;
-  };
 };
 
-export async function getReports(): Promise<ReportsResponse> {
-  const response = await fetch(`${API_URL}/reports`);
+export async function getReports(range = 7): Promise<ReportsResponse> {
+  const response = await fetch(`${API_URL}/reports?range=${range}`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch reports");
@@ -278,20 +342,7 @@ export async function getReports(): Promise<ReportsResponse> {
 }
 
 // Dashboard
-export type DashboardOrder = {
-  _id: string;
-  customer: string;
-  phone: string;
-  productId: string;
-  product: string;
-  quantity: number;
-  price: number;
-  total: number;
-  profit: number;
-  status: OrderStatus;
-  createdAt: string;
-  updatedAt: string;
-};
+export type DashboardOrder = Order;
 
 export type DashboardResponse = {
   stats: {

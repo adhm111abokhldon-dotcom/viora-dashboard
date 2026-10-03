@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Package, Save } from "lucide-react";
@@ -18,7 +19,10 @@ import {
 } from "@/components/ui/select";
 
 import { Product, updateProduct } from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { formatCurrency, formatPercent } from "@/lib/format";
+import { isKnownCategory } from "@/lib/categories";
+import { apiErrorMessage } from "@/lib/errors";
 
 type FormErrors = {
   name?: string;
@@ -33,6 +37,15 @@ type EditProductFormProps = {
 };
 
 export default function EditProductForm({ product }: EditProductFormProps) {
+  const t = useTranslations("products");
+  const tv = useTranslations("products.validation");
+  const tc = useTranslations("common");
+  const te = useTranslations("errors");
+  const locale = useLocale() as "en" | "ar";
+
+  const categoryLabel = (value: string) =>
+    isKnownCategory(value) ? t(`categories.${value}`) : value;
+
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -78,31 +91,31 @@ export default function EditProductForm({ product }: EditProductFormProps) {
     const newErrors: FormErrors = {};
 
     if (!name.trim()) {
-      newErrors.name = "Product name is required.";
+      newErrors.name = tv("nameRequired");
     }
 
     if (!category) {
-      newErrors.category = "Please select a category.";
+      newErrors.category = tv("categoryRequired");
     }
 
     if (!price) {
-      newErrors.price = "Selling price is required.";
+      newErrors.price = tv("priceRequired");
     } else if (sellingPrice <= 0) {
-      newErrors.price = "Selling price must be greater than 0.";
+      newErrors.price = tv("pricePositive");
     }
 
     if (!cost) {
-      newErrors.cost = "Product cost is required.";
+      newErrors.cost = tv("costRequired");
     } else if (productCost < 0) {
-      newErrors.cost = "Product cost cannot be negative.";
+      newErrors.cost = tv("costNegative");
     } else if (productCost >= sellingPrice && sellingPrice > 0) {
-      newErrors.cost = "Cost must be lower than the selling price.";
+      newErrors.cost = tv("costLowerThanPrice");
     }
 
     if (!stock) {
-      newErrors.stock = "Stock quantity is required.";
+      newErrors.stock = tv("stockRequired");
     } else if (Number(stock) < 0) {
-      newErrors.stock = "Stock cannot be negative.";
+      newErrors.stock = tv("stockNegative");
     }
 
     setErrors(newErrors);
@@ -132,19 +145,19 @@ export default function EditProductForm({ product }: EditProductFormProps) {
           variant="ghost"
           size="sm"
           render={<Link href="/products" />}
-          className="-ml-2 w-fit"
+          className="-ms-2 w-fit"
         >
-          <ArrowLeft className="size-4" />
-          Back to Products
+          <ArrowLeft className="size-4 rtl:-scale-x-100" />
+          {t("backToProducts")}
         </Button>
 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Edit Product
+            {t("editTitle")}
           </h1>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            Update your product information.
+            {t("editDescription")}
           </p>
         </div>
       </div>
@@ -158,10 +171,12 @@ export default function EditProductForm({ product }: EditProductFormProps) {
               </div>
 
               <div>
-                <CardTitle className="text-base">Basic Information</CardTitle>
+                <CardTitle className="text-base">
+                  {t("basicInformation")}
+                </CardTitle>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Update the basic details of your product.
+                  {t("updateBasicInformationDescription")}
                 </p>
               </div>
             </div>
@@ -169,7 +184,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
 
           <CardContent className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="name">Product Name</Label>
+              <Label htmlFor="name">{t("name")}</Label>
 
               <Input
                 id="name"
@@ -193,7 +208,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category">{t("category")}</Label>
 
               <Select
                 value={category}
@@ -213,14 +228,22 @@ export default function EditProductForm({ product }: EditProductFormProps) {
                   className="w-full"
                   aria-invalid={!!errors.category}
                 >
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder={t("selectCategory")} />
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="Beauty">Beauty</SelectItem>
-                  <SelectItem value="Gifts">Gifts</SelectItem>
-                  <SelectItem value="Accessories">Accessories</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="Beauty">
+                    {categoryLabel("Beauty")}
+                  </SelectItem>
+                  <SelectItem value="Gifts">
+                    {categoryLabel("Gifts")}
+                  </SelectItem>
+                  <SelectItem value="Accessories">
+                    {categoryLabel("Accessories")}
+                  </SelectItem>
+                  <SelectItem value="Other">
+                    {categoryLabel("Other")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
@@ -233,19 +256,19 @@ export default function EditProductForm({ product }: EditProductFormProps) {
 
         <Card className="shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">Pricing & Inventory</CardTitle>
+            <CardTitle className="text-base">{t("pricingInventory")}</CardTitle>
 
             <p className="text-sm text-muted-foreground">
-              Update the selling price, product cost, and available stock.
+              {t("updatePricingInventoryDescription")}
             </p>
           </CardHeader>
 
           <CardContent className="grid gap-5 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="price">Selling Price</Label>
+              <Label htmlFor="price">{t("sellingPrice")}</Label>
 
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                <span className="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   $
                 </span>
 
@@ -265,7 +288,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
                       }));
                     }
                   }}
-                  className="pl-7"
+                  className="ps-7"
                   aria-invalid={!!errors.price}
                 />
               </div>
@@ -276,10 +299,10 @@ export default function EditProductForm({ product }: EditProductFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cost">Product Cost</Label>
+              <Label htmlFor="cost">{t("productCost")}</Label>
 
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                <span className="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   $
                 </span>
 
@@ -299,7 +322,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
                       }));
                     }
                   }}
-                  className="pl-7"
+                  className="ps-7"
                   aria-invalid={!!errors.cost}
                 />
               </div>
@@ -310,7 +333,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="stock">Stock Quantity</Label>
+              <Label htmlFor="stock">{t("stockQuantity")}</Label>
 
               <Input
                 id="stock"
@@ -342,28 +365,30 @@ export default function EditProductForm({ product }: EditProductFormProps) {
           <CardContent className="p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium">Estimated Margin</p>
+                <p className="text-sm font-medium">{t("estimatedMargin")}</p>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Based on the selling price and product cost.
+                  {t("marginDescription")}
                 </p>
               </div>
 
-              <div className="sm:text-right">
+              <div className="sm:text-end">
                 <p
                   className={`text-2xl font-semibold tracking-tight tabular-nums ${
                     margin > 0
-                      ? "text-emerald-600 dark:text-emerald-400"
+                      ? "text-success"
                       : margin < 0
                         ? "text-destructive"
                         : "text-foreground"
                   }`}
                 >
-                  ${margin.toFixed(2)}
+                  {formatCurrency(margin, locale)}
                 </p>
 
                 <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-                  {marginPercentage.toFixed(1)}% margin
+                  {t("marginPercent", {
+                    value: formatPercent(marginPercentage, locale),
+                  })}
                 </p>
               </div>
             </div>
@@ -372,16 +397,16 @@ export default function EditProductForm({ product }: EditProductFormProps) {
 
         {updateProductMutation.isError && (
           <p className="text-sm text-destructive">
-            {updateProductMutation.error instanceof Error
-              ? updateProductMutation.error.message
-              : "Failed to update product."}
+            {apiErrorMessage(
+              updateProductMutation.error,
+              te,
+              te("updateProduct"),
+            )}
           </p>
         )}
 
         {updateProductMutation.isSuccess && (
-          <p className="text-sm text-emerald-600 dark:text-emerald-400">
-            Product updated successfully.
-          </p>
+          <p className="text-sm text-success">{te("productUpdated")}</p>
         )}
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -391,7 +416,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
             render={<Link href="/products" />}
             className="w-full sm:w-auto"
           >
-            Cancel
+            {tc("cancel")}
           </Button>
 
           <Button
@@ -400,7 +425,9 @@ export default function EditProductForm({ product }: EditProductFormProps) {
             className="w-full sm:w-auto"
           >
             <Save className="size-4" />
-            {updateProductMutation.isPending ? "Saving..." : "Save Changes"}
+            {updateProductMutation.isPending
+              ? tc("saving")
+              : t("saveChanges")}
           </Button>
         </div>
       </form>

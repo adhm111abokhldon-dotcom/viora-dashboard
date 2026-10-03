@@ -59,9 +59,9 @@ export default function AddProductLoading() {
                 <Skeleton className="h-3 w-40 max-w-full" />
               </div>
 
-              <div className="text-right space-y-2">
-                <Skeleton className="ml-auto h-6 w-20" />
-                <Skeleton className="ml-auto h-4 w-12" />
+              <div className="space-y-2 text-end">
+                <Skeleton className="ms-auto h-6 w-20" />
+                <Skeleton className="ms-auto h-4 w-12" />
               </div>
             </div>
           </div>

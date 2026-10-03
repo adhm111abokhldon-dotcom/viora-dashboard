@@ -53,7 +53,7 @@ export default function ProductsLoading() {
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-4 w-16" />
-            <Skeleton className="ml-auto h-4 w-16" />
+            <Skeleton className="ms-auto h-4 w-16" />
           </div>
 
           {/* Table Rows */}
@@ -78,7 +78,7 @@ export default function ProductsLoading() {
 
                 <Skeleton className="h-6 w-20 rounded-full" />
 
-                <Skeleton className="ml-auto size-8 rounded-md" />
+                <Skeleton className="ms-auto size-8 rounded-md" />
               </div>
             ))}
           </div>

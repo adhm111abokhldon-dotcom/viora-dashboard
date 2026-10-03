@@ -1,30 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "@/i18n/navigation";
 
 type AuthGuardProps = {
   children: React.ReactNode;
 };
 
+function subscribe(callback: () => void) {
+  window.addEventListener("storage", callback);
+
+  return () => window.removeEventListener("storage", callback);
+}
+
+function getSnapshot(): boolean | null {
+  return sessionStorage.getItem("isLoggedIn") === "true";
+}
+
+// null = not known yet (server / first client render).
+function getServerSnapshot(): boolean | null {
+  return null;
+}
+
 export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const [checked, setChecked] = useState(false);
+
+  const isLoggedIn = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 
   useEffect(() => {
-    const isLoggedIn = sessionStorage.getItem("isLoggedIn");
-
-    if (isLoggedIn !== "true") {
+    if (isLoggedIn === false) {
       router.replace("/");
-      return;
     }
+  }, [isLoggedIn, router]);
 
-    setChecked(true);
-  }, [router]);
-
-  if (!checked) {
+  if (isLoggedIn !== true) {
     return null;
   }
 
   return <>{children}</>;
 }
+
