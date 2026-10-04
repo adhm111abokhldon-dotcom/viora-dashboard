@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Moon, Sparkles, Sun } from "lucide-react";
+import { Check, Moon, Palette, Sparkles, Sun, } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useTranslations } from "next-intl";
 
@@ -20,6 +20,17 @@ const themes = [
     icon: Sun,
   },
   {
+    value: "shadcn-light",
+    labelKey: "shadcn light",
+    icon: Palette,
+  },
+  {
+    value: "shadcn-dark",
+    labelKey: "shadcn dark",
+    icon: Palette,
+  },
+
+  {
     value: "dark",
     labelKey: "dark",
     icon: Moon,
@@ -29,6 +40,32 @@ const themes = [
     labelKey: "viora",
     icon: Sparkles,
   },
+  {
+    value: "nord",
+    labelKey: "nord",
+    icon: Palette,
+  },
+
+  {
+    value: "dracula",
+    labelKey: "dracula",
+    icon: Palette,
+  },
+  {
+    value: "tokyo-night",
+    labelKey: "tokyoNight",
+    icon: Palette,
+  },
+  {
+    value: "catppuccin",
+    labelKey: "catppuccin",
+    icon: Palette,
+  },
+  {
+    value: "one-dark",
+    labelKey: "oneDark",
+    icon: Palette,
+  },
 ];
 
 export function ThemeSwitcher() {
@@ -36,8 +73,9 @@ export function ThemeSwitcher() {
   const t = useTranslations("theme");
 
   const active = themes.find((item) => item.value === theme) ?? themes[0];
+
   const ActiveIcon = active.icon;
-  const activeLabel = t(active.labelKey);
+  const activeLabel = active.labelKey;
 
   return (
     <DropdownMenu>
@@ -47,14 +85,14 @@ export function ThemeSwitcher() {
             variant="ghost"
             size="icon"
             className="size-9"
-            aria-label={t("label", { current: activeLabel })}
+            aria-label={activeLabel}
           >
             <ActiveIcon className="size-4" />
           </Button>
         }
       ></DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuContent align="end" className="w-44">
         {themes.map((item) => {
           const Icon = item.icon;
           const isActive = theme === item.value;
@@ -68,7 +106,7 @@ export function ThemeSwitcher() {
             >
               <Icon className="size-4" />
 
-              <span className="flex-1">{t(item.labelKey)}</span>
+              <span className="flex-1">{item.labelKey}</span>
 
               {isActive && <Check className="size-4 text-primary" />}
             </DropdownMenuItem>

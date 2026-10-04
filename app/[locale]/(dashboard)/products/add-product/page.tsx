@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ImagePlus, Package, Save, X } from "lucide-react";
@@ -17,13 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { createProduct } from "@/lib/api";
 import { uploadProductImage } from "@/lib/cloudinary";
-import { useRouter } from "@/i18n/navigation";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { isKnownCategory } from "@/lib/categories";
 import { apiErrorMessage } from "@/lib/errors";
 import AddProductLoading from "@/components/AddProductLoading";
+import Image from "next/image";
 
 type FormErrors = {
   name?: string;
@@ -56,6 +57,19 @@ export default function AddProductPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<FormErrors>({});
+
+  const sellingPrice = Number(price) || 0;
+  const productCost = Number(cost) || 0;
+
+  const margin = useMemo(() => {
+    return sellingPrice - productCost;
+  }, [sellingPrice, productCost]);
+
+  const marginPercentage = useMemo(() => {
+    if (sellingPrice <= 0) return 0;
+
+    return (margin / sellingPrice) * 100;
+  }, [margin, sellingPrice]);
 
   const createProductMutation = useMutation({
     mutationFn: async () => {
@@ -92,19 +106,6 @@ export default function AddProductPage() {
     },
   });
 
-  const sellingPrice = Number(price) || 0;
-  const productCost = Number(cost) || 0;
-
-  const margin = useMemo(() => {
-    return sellingPrice - productCost;
-  }, [sellingPrice, productCost]);
-
-  const marginPercentage = useMemo(() => {
-    if (sellingPrice <= 0) return 0;
-
-    return (margin / sellingPrice) * 100;
-  }, [margin, sellingPrice]);
-
   useEffect(() => {
     return () => {
       if (imagePreview?.startsWith("blob:")) {
@@ -139,8 +140,6 @@ export default function AddProductPage() {
     setImageFile(null);
     setImagePreview(null);
   }
-
-  if (createProductMutation.isPending) return <AddProductLoading />;
 
   function validate() {
     const newErrors: FormErrors = {};
@@ -186,10 +185,14 @@ export default function AddProductPage() {
     createProductMutation.mutate();
   }
 
+  if (createProductMutation.isPending) {
+    return <AddProductLoading />;
+  }
+
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
+    <div className="mx-auto w-full max-w-400 space-y-7 overflow-x-hidden">
       {/* Header */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <Button
           nativeButton={false}
           variant="ghost"
@@ -202,11 +205,11 @@ export default function AddProductPage() {
         </Button>
 
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-text sm:text-3xl">
             {t("addTitle")}
           </h1>
 
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-text-muted">
             {t("addDescription")}
           </p>
         </div>
@@ -214,26 +217,26 @@ export default function AddProductPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
-        <Card className="shadow-none">
-          <CardHeader>
+        <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">
+          <CardHeader className="border-b border-border">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-md border bg-muted">
-                <Package className="size-4 text-muted-foreground" />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <Package className="size-4" />
               </div>
 
-              <div>
-                <CardTitle className="text-base">
+              <div className="min-w-0">
+                <CardTitle className="text-base font-semibold text-text">
                   {t("basicInformation")}
                 </CardTitle>
 
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-text-muted">
                   {t("basicInformationDescription")}
                 </p>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent className="grid gap-5 sm:grid-cols-2">
+          <CardContent className="grid gap-5 p-5 sm:grid-cols-2">
             {/* Product Name */}
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="name">{t("name")}</Label>
@@ -289,12 +292,15 @@ export default function AddProductPage() {
                   <SelectItem value="Beauty">
                     {categoryLabel("Beauty")}
                   </SelectItem>
+
                   <SelectItem value="Gifts">
                     {categoryLabel("Gifts")}
                   </SelectItem>
+
                   <SelectItem value="Accessories">
                     {categoryLabel("Accessories")}
                   </SelectItem>
+
                   <SelectItem value="Other">
                     {categoryLabel("Other")}
                   </SelectItem>
@@ -311,17 +317,19 @@ export default function AddProductPage() {
               <Label htmlFor="product-image">Product Image</Label>
 
               {imagePreview ? (
-                <div className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-lg border bg-muted">
-                  <img
+                <div className="relative size-32 overflow-hidden rounded-md border border-border bg-surface">
+                  <Image
                     src={imagePreview}
                     alt={name || "Product preview"}
+                    width={128}
+                    height={128}
                     className="h-full w-full object-cover"
                   />
 
                   <button
                     type="button"
                     onClick={removeImage}
-                    className="absolute end-1 top-1 flex size-7 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background"
+                    className="absolute inset-e-2 top-2 flex size-7 items-center justify-center rounded-md border border-border bg-card text-text transition-colors hover:bg-surface-raised"
                     aria-label="Remove image"
                   >
                     <X className="size-4" />
@@ -330,10 +338,11 @@ export default function AddProductPage() {
               ) : (
                 <label
                   htmlFor="product-image"
-                  className="flex h-32 w-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/50"
+                  className="flex size-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface text-text-muted transition-colors hover:bg-surface-raised"
                 >
                   <ImagePlus className="size-6" />
-                  <span className="text-xs">Upload image</span>
+
+                  <span className="text-xs font-medium">Upload image</span>
                 </label>
               )}
 
@@ -348,7 +357,7 @@ export default function AddProductPage() {
               {imagePreview && (
                 <label
                   htmlFor="product-image"
-                  className="block w-fit cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground"
+                  className="block w-fit cursor-pointer text-xs font-medium text-text-muted hover:text-text"
                 >
                   Change image
                 </label>
@@ -358,22 +367,24 @@ export default function AddProductPage() {
         </Card>
 
         {/* Pricing & Inventory */}
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">{t("pricingInventory")}</CardTitle>
+        <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-base font-semibold text-text">
+              {t("pricingInventory")}
+            </CardTitle>
 
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-text-muted">
               {t("pricingInventoryDescription")}
             </p>
           </CardHeader>
 
-          <CardContent className="grid gap-5 sm:grid-cols-3">
+          <CardContent className="grid gap-5 p-5 sm:grid-cols-3">
             {/* Selling Price */}
             <div className="space-y-2">
               <Label htmlFor="price">{t("sellingPrice")}</Label>
 
               <div className="relative">
-                <span className="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                <span className="absolute inset-s-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
                   $
                 </span>
 
@@ -409,7 +420,7 @@ export default function AddProductPage() {
               <Label htmlFor="cost">{t("productCost")}</Label>
 
               <div className="relative">
-                <span className="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                <span className="absolute inset-s-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
                   $
                 </span>
 
@@ -472,31 +483,33 @@ export default function AddProductPage() {
         </Card>
 
         {/* Margin */}
-        <Card className="shadow-none">
+        <Card className="overflow-hidden rounded-lg border border-border border-s-4 border-s-success bg-card shadow-none">
           <CardContent className="p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium">{t("estimatedMargin")}</p>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text">
+                  {t("estimatedMargin")}
+                </p>
 
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-text-muted">
                   {t("marginDescription")}
                 </p>
               </div>
 
-              <div className="sm:text-end">
+              <div className="shrink-0 sm:text-end">
                 <p
-                  className={`text-2xl font-semibold tracking-tight tabular-nums ${
+                  className={`text-2xl font-bold tracking-tight tabular-nums ${
                     margin > 0
                       ? "text-success"
                       : margin < 0
                         ? "text-destructive"
-                        : "text-foreground"
+                        : "text-text"
                   }`}
                 >
                   {formatCurrency(margin, locale)}
                 </p>
 
-                <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                <p className="mt-1 text-sm text-text-muted tabular-nums">
                   {t("marginPercent", {
                     value: formatPercent(marginPercentage, locale),
                   })}
@@ -506,14 +519,18 @@ export default function AddProductPage() {
           </CardContent>
         </Card>
 
+        {/* Error */}
         {createProductMutation.isError && (
-          <p className="text-sm text-destructive" role="alert">
+          <div
+            className="border-s-4 border-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
+            role="alert"
+          >
             {apiErrorMessage(
               createProductMutation.error,
               te,
               te("createProduct"),
             )}
-          </p>
+          </div>
         )}
 
         {/* Actions */}
@@ -534,6 +551,7 @@ export default function AddProductPage() {
             disabled={createProductMutation.isPending}
           >
             <Save className="size-4" />
+
             {createProductMutation.isPending ? tc("saving") : t("saveProduct")}
           </Button>
         </div>

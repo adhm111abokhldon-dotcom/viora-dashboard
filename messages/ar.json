@@ -128,7 +128,8 @@
     "tableCustomer": "العميل",
     "tableItems": "المنتجات",
     "tableAmount": "المبلغ",
-    "tableStatus": "الحالة"
+    "tableStatus": "الحالة",
+    "totalOrders": "إجمالي الطلبات"
   },
   "products": {
     "title": "المنتجات",
@@ -170,7 +171,7 @@
     "stockQuantity": "كمية المخزون",
     "estimatedMargin": "الهامش التقديري",
     "marginDescription": "حسب سعر البيع وكلفة المنتج",
-    "marginPercent": "هامش {value}%",
+    "marginPercent": "هامش {value}",
     "addTitle": "إضافة منتج",
     "addDescription": "أضف منتجاً جديداً إلى مخزونك",
     "editTitle": "تعديل المنتج",
@@ -346,7 +347,7 @@
     "totalSales": "إجمالي المبيعات",
     "activeOrdersHint": "{count, plural, zero {لا طلبات نشطة} one {طلب نشط واحد} two {طلبان نشطان} few {# طلبات نشطة} many {# طلباً نشطاً} other {# طلب نشط}}",
     "totalProfit": "إجمالي الأرباح",
-    "marginHint": "الهامش {value}%",
+    "marginHint": "الهامش {value}",
     "totalOrders": "إجمالي الطلبات",
     "pendingHint": "{count, plural, zero {لا طلبات معلّقة} one {طلب واحد معلّق} two {طلبان معلّقان} few {# طلبات معلّقة} many {# طلباً معلّقاً} other {# طلب معلّق}}",
     "averageOrder": "متوسط قيمة الطلب",

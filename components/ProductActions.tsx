@@ -1,6 +1,6 @@
 "use client";
 
-
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,8 @@ import { Product } from "@/lib/api";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import { DeleteProductDialog } from "./DeleteProductDialog";
+
 export function ProductActions({
   product,
   onDelete,
@@ -22,48 +24,66 @@ export function ProductActions({
   onDelete: (productId: string) => void;
   isDeleting: boolean;
 }) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const t = useTranslations("products.actions");
 
+  function handleDeleteClick() {
+    setDeleteDialogOpen(true);
+  }
+
+  function handleDeleteConfirm() {
+    onDelete(product._id);
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            aria-label={t("aria")}
-          >
-            <MoreHorizontal className="size-4" />
-          </Button>
-        }
-      />
-
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
           render={
-            <Link
-              href={`/products/${product._id}`}
-              className="w-40 flex items-center gap-1"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label={t("aria")}
             >
-              <Pencil className="size-4" />
-              {t("edit")}
-            </Link>
+              <MoreHorizontal className="size-4" />
+            </Button>
           }
-        ></DropdownMenuItem>
+        />
 
-        <DropdownMenuSeparator />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            render={
+              <Link
+                href={`/products/${product._id}`}
+                className="flex w-40 items-center gap-1"
+              >
+                <Pencil className="size-4" />
+                {t("edit")}
+              </Link>
+            }
+          />
 
-        <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onClick={() => onDelete(product._id)}
-          disabled={isDeleting}
-        >
-          <Trash2 className="size-4" />
-          {isDeleting ? t("deleting") : t("delete")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={handleDeleteClick}
+            disabled={isDeleting}
+          >
+            <Trash2 className="size-4" />
+            {isDeleting ? t("deleting") : t("delete")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DeleteProductDialog
+        open={deleteDialogOpen}
+        productName={product.name}
+        isDeleting={isDeleting}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+      />
+    </>
   );
 }
-

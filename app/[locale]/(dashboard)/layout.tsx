@@ -21,24 +21,151 @@ import { Link, usePathname } from "@/i18n/navigation";
 
 const pageKeys: Record<string, string> = {
   "/dashboard": "overview",
+
   "/products": "products",
   "/products/add-product": "addProduct",
+
   "/orders": "orders",
   "/orders/add-order": "addOrder",
+
   "/reports": "reports",
 };
 
-function getPageName(
-  pathname: string,
-  t: (key: string) => string,
-): string {
-  if (pageKeys[pathname]) return t(pageKeys[pathname]);
+function getBreadcrumbs(pathname: string, t: (key: string) => string) {
+  if (pathname === "/dashboard") {
+    return [
+      {
+        key: "dashboard",
+        label: t("dashboard"),
+        href: "/dashboard",
+      },
+    ];
+  }
 
-  if (/^\/orders\/[^/]+\/edit$/.test(pathname)) return t("editOrder");
-  if (/^\/orders\/[^/]+\/delete$/.test(pathname)) return t("deleteOrder");
-  if (/^\/products\/[^/]+$/.test(pathname)) return t("editProduct");
+  const breadcrumbs = [
+    {
+      key: "dashboard",
+      label: t("dashboard"),
+      href: "/dashboard",
+    },
+  ];
 
-  return t("dashboard");
+  if (pathname === "/products") {
+    breadcrumbs.push({
+      key: "products",
+      label: t("products"),
+      href: "/products",
+    });
+
+    return breadcrumbs;
+  }
+
+  if (pathname === "/products/add-product") {
+    breadcrumbs.push(
+      {
+        key: "products",
+        label: t("products"),
+        href: "/products",
+      },
+      {
+        key: "add-product",
+        label: t("addProduct"),
+        href: "",
+      },
+    );
+
+    return breadcrumbs;
+  }
+
+  if (/^\/products\/[^/]+$/.test(pathname)) {
+    breadcrumbs.push(
+      {
+        key: "products",
+        label: t("products"),
+        href: "/products",
+      },
+      {
+        key: "edit-product",
+        label: t("editProduct"),
+        href: "",
+      },
+    );
+
+    return breadcrumbs;
+  }
+
+  if (pathname === "/orders") {
+    breadcrumbs.push({
+      key: "orders",
+      label: t("orders"),
+      href: "/orders",
+    });
+
+    return breadcrumbs;
+  }
+
+  if (pathname === "/orders/add-order") {
+    breadcrumbs.push(
+      {
+        key: "orders",
+        label: t("orders"),
+        href: "/orders",
+      },
+      {
+        key: "add-order",
+        label: t("addOrder"),
+        href: "",
+      },
+    );
+
+    return breadcrumbs;
+  }
+
+  if (/^\/orders\/[^/]+\/edit$/.test(pathname)) {
+    breadcrumbs.push(
+      {
+        key: "orders",
+        label: t("orders"),
+        href: "/orders",
+      },
+      {
+        key: "edit-order",
+        label: t("editOrder"),
+        href: "",
+      },
+    );
+
+    return breadcrumbs;
+  }
+
+  if (/^\/orders\/[^/]+\/delete$/.test(pathname)) {
+    breadcrumbs.push(
+      {
+        key: "orders",
+        label: t("orders"),
+        href: "/orders",
+      },
+      {
+        key: "delete-order",
+        label: t("deleteOrder"),
+        href: "",
+      },
+    );
+
+    return breadcrumbs;
+  }
+
+  if (pathname === "/reports") {
+    breadcrumbs.push({
+      key: "reports",
+      label: t("reports"),
+      href: "/reports",
+    });
+
+    return breadcrumbs;
+  }
+
+  return breadcrumbs;
 }
 
 export default function DashboardLayout({
@@ -49,7 +176,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const t = useTranslations("breadcrumbs");
 
-  const currentPage = getPageName(pathname, t);
+  const breadcrumbs = getBreadcrumbs(pathname, t);
 
   return (
     <AuthGuard>
@@ -65,26 +192,37 @@ export default function DashboardLayout({
 
               <Breadcrumb className="min-w-0">
                 <BreadcrumbList className="flex-nowrap">
-                  <BreadcrumbItem>
-                    <BreadcrumbLink
-                      render={
-                        <Link
-                          href="/dashboard"
-                          className="text-muted-foreground"
-                        >
-                          {t("dashboard")}
-                        </Link>
-                      }
-                    ></BreadcrumbLink>
-                  </BreadcrumbItem>
+                  {breadcrumbs.map((item, index) => {
+                    const isLast = index === breadcrumbs.length - 1;
 
-                  <BreadcrumbSeparator />
+                    return (
+                      <div
+                        key={item.key}
+                        className="flex min-w-0 items-center gap-2"
+                      >
+                        {index > 0 && <BreadcrumbSeparator />}
 
-                  <BreadcrumbItem className="min-w-0">
-                    <BreadcrumbPage className="truncate font-medium">
-                      {currentPage}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
+                        <BreadcrumbItem className="min-w-0">
+                          {isLast ? (
+                            <BreadcrumbPage className="truncate font-medium">
+                              {item.label}
+                            </BreadcrumbPage>
+                          ) : (
+                            <BreadcrumbLink
+                              render={
+                                <Link
+                                  href={item.href}
+                                  className="text-muted-foreground"
+                                >
+                                  {item.label}
+                                </Link>
+                              }
+                            ></BreadcrumbLink>
+                          )}
+                        </BreadcrumbItem>
+                      </div>
+                    );
+                  })}
                 </BreadcrumbList>
               </Breadcrumb>
             </div>

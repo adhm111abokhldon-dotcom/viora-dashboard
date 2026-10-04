@@ -18,6 +18,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,14 +30,11 @@ import { Pagination } from "@/components/ui/Pagination";
 import ProductsLoading from "@/components/ProductsLoading";
 import PageHeader from "@/components/PageHeader";
 import ErrorState from "@/components/ErrorState";
-import StatCard from "@/components/StatCard";
 import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import { isKnownCategory } from "@/lib/categories";
-import Image from "next/image";
 
-// نفس الرقم مستخدم بالباك إند لحساب "Low stock"
 const LOW_STOCK_THRESHOLD = 10;
 
 function getStockStatus(stock: number, t: (key: string) => string) {
@@ -77,21 +75,20 @@ function ProductThumbnail({
   product: Product;
   size?: "default" | "mobile";
 }) {
-  const sizeClass =
-    size === "mobile" ? "size-11 rounded-lg" : "size-11 rounded-lg";
+  const sizeClass = size === "mobile" ? "size-14" : "size-14";
 
   if (product.imageUrl) {
     return (
       <div
-        className={`shrink-0 rounded-lg overflow-hidden border bg-muted ${sizeClass}`}
+        className={`flex ${sizeClass} shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface`}
       >
         <Image
           src={product.imageUrl}
           alt={product.name}
           loading="lazy"
-          width={44}
-          height={44}
-          className="object-cover"
+          width={50}
+          height={50}
+          className=" object-cover"
         />
       </div>
     );
@@ -99,10 +96,67 @@ function ProductThumbnail({
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center border bg-muted/40 text-muted-foreground ${sizeClass}`}
+      className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-muted`}
       aria-hidden="true"
     >
-      <ImageIcon className="size-4" />
+      <ImageIcon className="size-5" />
+    </div>
+  );
+}
+
+type SummaryTone = "primary" | "success" | "warning";
+
+const summaryStyles: Record<
+  SummaryTone,
+  {
+    icon: string;
+    border: string;
+  }
+> = {
+  primary: {
+    icon: "bg-primary text-primary-foreground",
+    border: "border-s-primary",
+  },
+  success: {
+    icon: "bg-success text-success-foreground",
+    border: "border-s-success",
+  },
+  warning: {
+    icon: "bg-warning text-warning-foreground",
+    border: "border-s-warning",
+  },
+};
+
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "primary",
+}: {
+  label: string;
+  value: string;
+  icon: typeof Package;
+  tone?: SummaryTone;
+}) {
+  const styles = summaryStyles[tone];
+
+  return (
+    <div
+      className={`flex min-w-0 items-center gap-4 rounded-lg border border-border border-s-4 bg-card px-5 py-5 ${styles.border}`}
+    >
+      <div
+        className={`flex size-11 shrink-0 items-center justify-center rounded-md ${styles.icon}`}
+      >
+        <Icon className="size-5" />
+      </div>
+
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-text-muted">{label}</p>
+
+        <p className="mt-1 text-2xl font-bold leading-none tabular-nums text-text">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
@@ -118,9 +172,9 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+
   const queryClient = useQueryClient();
 
-  // ما منبعت طلب مع كل حرف: بنستنى 400ms بعد آخر ضغطة
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
@@ -142,11 +196,9 @@ export default function ProductsPage() {
 
   const limit = 10;
 
-  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["products", page, limit, search],
     queryFn: () => getProducts(page, limit, search),
-    // بيضل يعرض النتايج القديمة لحد ما تجي الجديدة،
-    // وإلا الصفحة كلها بتصير skeleton وحقل البحث بيختفي وانت عم تكتب
     placeholderData: keepPreviousData,
   });
 
@@ -174,7 +226,7 @@ export default function ProductsPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-400 space-y-6">
         <PageHeader title={t("title")} description={t("description")} />
 
         <ErrorState
@@ -190,7 +242,7 @@ export default function ProductsPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="mx-auto w-full max-w-[1600px] space-y-6"
+      className="mx-auto w-full max-w-400 space-y-7"
     >
       {/* Header */}
       <motion.div variants={itemVariants}>
@@ -210,42 +262,50 @@ export default function ProductsPage() {
         />
       </motion.div>
 
+      {/* Delete Error */}
       {deleteProductMutation.isError && (
-        <p className="text-sm text-destructive" role="alert">
-          {apiErrorMessage(
-            deleteProductMutation.error,
-            te,
-            te("deleteProduct"),
-          )}
-        </p>
+        <motion.div variants={itemVariants}>
+          <div
+            className="border-s-4 border-s-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
+            role="alert"
+          >
+            {apiErrorMessage(
+              deleteProductMutation.error,
+              te,
+              te("deleteProduct"),
+            )}
+          </div>
+        </motion.div>
       )}
 
-      {/* Product Summary */}
+      {/* Summary */}
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-3">
-        <StatCard
+        <SummaryCard
           label={t("totalProducts")}
           value={formatNumber(stats?.totalProducts ?? 0, locale)}
           icon={Package}
+          tone="primary"
         />
 
-        <StatCard
+        <SummaryCard
           label={t("totalStock")}
           value={formatNumber(stats?.totalStock ?? 0, locale)}
           icon={Boxes}
+          tone="success"
         />
 
-        <StatCard
+        <SummaryCard
           label={t("lowOutOfStock")}
           value={formatNumber(stats?.lowStockCount ?? 0, locale)}
           icon={AlertTriangle}
-          tone={stats?.lowStockCount ? "warning" : "default"}
+          tone="warning"
         />
       </motion.div>
 
       {/* Products */}
       <motion.div variants={itemVariants}>
-        <Card className="shadow-none">
-          <CardHeader className="gap-4">
+        <Card className="overflow-hidden rounded-lg border border-border shadow-none">
+          <CardHeader className="gap-4 border-b border-border">
             <div>
               <CardTitle className="text-base font-semibold">
                 {t("catalog")}
@@ -257,7 +317,7 @@ export default function ProductsPage() {
             </div>
 
             <div className="relative w-full sm:max-w-xs">
-              <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
               <Input
                 value={searchInput}
@@ -269,14 +329,10 @@ export default function ProductsPage() {
             </div>
           </CardHeader>
 
-          <CardContent
-            className={`p-0 transition-opacity ${
-              isFetching ? "opacity-60" : ""
-            }`}
-          >
+          <CardContent className="p-0">
             {products.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-                <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/40">
+                <div className="flex size-10 items-center justify-center rounded-md border border-border bg-surface">
                   <Package className="size-4 text-muted-foreground" />
                 </div>
 
@@ -299,107 +355,115 @@ export default function ProductsPage() {
               <>
                 {/* Desktop */}
                 <div className="hidden md:block">
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_48px] items-center border-y bg-muted/20 px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <span>{t("tableProduct")}</span>
-                    <span>{t("tablePrice")}</span>
-                    <span>{t("tableCost")}</span>
-                    <span>{t("tableMargin")}</span>
-                    <span>{t("tableStock")}</span>
-                    <span />
-                  </div>
+                  <div className="max-h-170 overflow-y-auto overflow-x-hidden">
+                    {/* Table Header */}
+                    <div className="sticky top-0 z-10 grid grid-cols-[minmax(220px,2fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)_48px] items-center gap-4 border-b border-border bg-card px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <span>{t("tableProduct")}</span>
+                      <span>{t("tablePrice")}</span>
+                      <span>{t("tableCost")}</span>
+                      <span>{t("tableMargin")}</span>
+                      <span>{t("tableStock")}</span>
+                      <span />
+                    </div>
 
-                  {products.map((product: Product) => {
-                    const { margin, percentage } = getMargin(product);
-                    const stockStatus = getStockStatus(product.stock, t);
+                    {products.map((product: Product) => {
+                      const { margin, percentage } = getMargin(product);
 
-                    return (
-                      <div
-                        key={product._id}
-                        className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_48px] items-center border-b px-6 py-4 last:border-b-0"
-                      >
-                        {/* Product */}
-                        <div className="flex min-w-0 items-center gap-3">
-                          <ProductThumbnail product={product} />
+                      const stockStatus = getStockStatus(product.stock, t);
 
+                      return (
+                        <div
+                          key={product._id}
+                          className="grid grid-cols-[minmax(220px,2fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)_48px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0"
+                        >
+                          {/* Product */}
+                          <div className="flex min-w-0 items-center gap-3">
+                            <ProductThumbnail product={product} />
+
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {product.name}
+                              </p>
+
+                              <p className="truncate text-xs text-muted-foreground">
+                                {categoryLabel(product.category)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Price */}
+                          <span className="text-sm font-medium tabular-nums">
+                            {formatCurrency(product.price, locale)}
+                          </span>
+
+                          {/* Cost */}
+                          <span className="text-sm text-muted-foreground tabular-nums">
+                            {formatCurrency(product.cost, locale)}
+                          </span>
+
+                          {/* Margin */}
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {product.name}
+                            <p className="truncate text-sm font-medium tabular-nums">
+                              {formatCurrency(margin, locale)}
                             </p>
 
-                            <p className="truncate text-xs text-muted-foreground">
-                              {categoryLabel(product.category)}
+                            <p className="text-xs text-muted-foreground tabular-nums">
+                              {formatPercent(percentage, locale, 0)}
                             </p>
                           </div>
-                        </div>
 
-                        {/* Price */}
-                        <span className="text-sm font-medium tabular-nums">
-                          {formatCurrency(product.price, locale)}
-                        </span>
+                          {/* Stock */}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium tabular-nums">
+                              {formatNumber(product.stock, locale)}
+                            </p>
 
-                        {/* Cost */}
-                        <span className="text-sm text-muted-foreground tabular-nums">
-                          {formatCurrency(product.cost, locale)}
-                        </span>
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <span
+                                className={`size-1.5 shrink-0 rounded-full ${stockStatus.dotClassName}`}
+                              />
 
-                        {/* Margin */}
-                        <div>
-                          <p className="text-sm font-medium tabular-nums">
-                            {formatCurrency(margin, locale)}
-                          </p>
+                              <span
+                                className={`truncate text-xs ${stockStatus.className}`}
+                              >
+                                {stockStatus.label}
+                              </span>
+                            </div>
+                          </div>
 
-                          <p className="text-xs text-muted-foreground tabular-nums">
-                            {formatPercent(percentage, locale, 0)}
-                          </p>
-                        </div>
-
-                        {/* Stock */}
-                        <div>
-                          <p className="text-sm font-medium tabular-nums">
-                            {formatNumber(product.stock, locale)}
-                          </p>
-
-                          <div className="mt-1 flex items-center gap-1.5">
-                            <span
-                              className={`size-1.5 rounded-full ${stockStatus.dotClassName}`}
+                          {/* Actions */}
+                          <div className="flex justify-end">
+                            <ProductActions
+                              product={product}
+                              onDelete={handleDelete}
+                              isDeleting={deleteProductMutation.isPending}
                             />
-
-                            <span
-                              className={`text-xs ${stockStatus.className}`}
-                            >
-                              {stockStatus.label}
-                            </span>
                           </div>
                         </div>
-
-                        <ProductActions
-                          product={product}
-                          onDelete={handleDelete}
-                          isDeleting={deleteProductMutation.isPending}
-                        />
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Mobile */}
-                <div className="divide-y md:hidden">
+                <div className="divide-y divide-border md:hidden">
                   {products.map((product: Product) => {
                     const { margin, percentage } = getMargin(product);
+
                     const stockStatus = getStockStatus(product.stock, t);
 
                     return (
-                      <div key={product._id} className="space-y-4 p-5">
+                      <div key={product._id} className="space-y-5 p-5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-3">
                             <ProductThumbnail product={product} size="mobile" />
 
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
+                              <p className="truncate text-sm font-semibold">
                                 {product.name}
                               </p>
 
-                              <p className="text-xs text-muted-foreground">
+                              <p className="truncate text-xs text-muted-foreground">
                                 {categoryLabel(product.category)}
                               </p>
                             </div>
@@ -412,8 +476,8 @@ export default function ProductsPage() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
+                        <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border">
+                          <div className="border-e border-b border-border p-3.5">
                             <p className="text-xs text-muted-foreground">
                               {t("tablePrice")}
                             </p>
@@ -423,7 +487,17 @@ export default function ProductsPage() {
                             </p>
                           </div>
 
-                          <div>
+                          <div className="border-b border-border p-3.5">
+                            <p className="text-xs text-muted-foreground">
+                              {t("tableCost")}
+                            </p>
+
+                            <p className="mt-1 text-sm font-medium tabular-nums">
+                              {formatCurrency(product.cost, locale)}
+                            </p>
+                          </div>
+
+                          <div className="border-e border-border p-3.5">
                             <p className="text-xs text-muted-foreground">
                               {t("tableMargin")}
                             </p>
@@ -432,12 +506,12 @@ export default function ProductsPage() {
                               {formatCurrency(margin, locale)}
                             </p>
 
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground tabular-nums">
                               {formatPercent(percentage, locale, 0)}
                             </p>
                           </div>
 
-                          <div>
+                          <div className="p-3.5">
                             <p className="text-xs text-muted-foreground">
                               {t("tableStock")}
                             </p>
@@ -448,7 +522,7 @@ export default function ProductsPage() {
 
                             <div className="mt-1 flex items-center gap-1.5">
                               <span
-                                className={`size-1.5 rounded-full ${stockStatus.dotClassName}`}
+                                className={`size-1.5 shrink-0 rounded-full ${stockStatus.dotClassName}`}
                               />
 
                               <span

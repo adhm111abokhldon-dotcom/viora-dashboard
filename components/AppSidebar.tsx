@@ -6,9 +6,10 @@ import {
   Boxes,
   LayoutDashboard,
   LogOut,
-  PackagePlus,
   ShoppingCart,
 } from "lucide-react";
+
+import LogoImg from "@/public/logo.jpeg";
 
 import {
   Sidebar,
@@ -33,6 +34,7 @@ import {
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
+import Image from "next/image";
 
 const navigation = [
   {
@@ -70,30 +72,35 @@ export function AppSidebar() {
   return (
     <Sidebar>
       {/* Brand */}
-      <SidebarHeader className="px-4 py-4">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <PackagePlus className="size-4" />
+      <SidebarHeader className="px-4 py-5">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        >
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md overflow-hidden text-primary-foreground">
+            <Image src={LogoImg} alt="Viora Logo" width={40} height={40} />
           </div>
 
-          <div className="flex flex-col leading-none">
-            <span className="font-semibold tracking-tight">Viora Beauty</span>
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold tracking-tight">
+              Viora Beauty
+            </p>
 
-            <span className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 truncate text-xs text-sidebar-foreground/70">
               {t("tagline")}
-            </span>
+            </p>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <SidebarContent className="px-2">
+        <SidebarGroup className="px-1 py-5">
+          <SidebarGroupLabel className="mb-2 h-7 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
             {t("main")}
           </SidebarGroupLabel>
 
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-2">
               {navigation.map((item) => {
                 const isActive =
                   pathname === item.url ||
@@ -107,13 +114,18 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       render={
                         <Link href={item.url}>
-                          <item.icon className="size-4" />
+                          <item.icon className="size-[18px]" />
                           <span>{title}</span>
                         </Link>
                       }
                       isActive={isActive}
                       tooltip={title}
-                    ></SidebarMenuButton>
+                      className={`h-11 gap-3 rounded-md px-3 text-sm font-medium ${
+                        isActive
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground "
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      }`}
+                    />
                   </SidebarMenuItem>
                 );
               })}
@@ -122,29 +134,32 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-2">
+      <SidebarFooter className="p-3">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <SidebarMenuButton className="h-12">
-                <Avatar className="size-8 rounded-md">
-                  <AvatarFallback className="rounded-md bg-muted text-xs font-medium">
-                    AD
-                  </AvatarFallback>
+              <SidebarMenuButton className="h-12 overflow-hidden  px-2">
+                <Avatar className="overflow-hidden ">
+                  <Image
+                    src={LogoImg}
+                    alt="Viora Logo"
+                    width={40}
+                    height={40}
+                  />
                 </Avatar>
 
                 <div className="flex min-w-0 flex-1 flex-col items-start text-start">
                   <span className="w-full truncate text-sm font-medium">
-                    Adham
+                    Viora
                   </span>
 
-                  <span className="w-full truncate text-xs text-muted-foreground">
+                  <span className="w-full truncate text-xs text-sidebar-foreground/60">
                     {t("role")}
                   </span>
                 </div>
               </SidebarMenuButton>
             }
-          ></DropdownMenuTrigger>
+          />
 
           <DropdownMenuContent side="top" align="start" className="w-56">
             <DropdownMenuItem>{t("account")}</DropdownMenuItem>

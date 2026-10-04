@@ -128,7 +128,8 @@
     "tableCustomer": "Customer",
     "tableItems": "Items",
     "tableAmount": "Amount",
-    "tableStatus": "Status"
+    "tableStatus": "Status",
+    "totalOrders": "Total Orders"
   },
   "products": {
     "title": "Products",
@@ -170,7 +171,7 @@
     "stockQuantity": "Stock Quantity",
     "estimatedMargin": "Estimated Margin",
     "marginDescription": "Based on the selling price and product cost.",
-    "marginPercent": "{value}% margin",
+    "marginPercent": "{value} margin",
     "addTitle": "Add Product",
     "addDescription": "Add a new product to your inventory.",
     "editTitle": "Edit Product",
@@ -346,7 +347,7 @@
     "totalSales": "Total Sales",
     "activeOrdersHint": "{count, plural, one {# active order} other {# active orders}}",
     "totalProfit": "Total Profit",
-    "marginHint": "Margin {value}%",
+    "marginHint": "Margin {value}",
     "totalOrders": "Total Orders",
     "pendingHint": "{count, plural, one {# pending} other {# pending}}",
     "averageOrder": "Average Order",

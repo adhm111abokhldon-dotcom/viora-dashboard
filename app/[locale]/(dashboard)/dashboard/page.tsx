@@ -3,9 +3,10 @@
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
+  ArrowUpRight,
   Clock3,
   DollarSign,
   ImageIcon,
@@ -48,15 +49,16 @@ import { apiErrorMessage } from "@/lib/errors";
 import ErrorState from "@/components/ErrorState";
 import OrderActions from "@/components/OrderActions";
 import PageHeader from "@/components/PageHeader";
-import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 
 type Tone = "positive" | "negative" | "neutral";
 
-// لو أمس ما كان في مبيعات، النسبة ما إلها معنى
 function comparePercent(today: number, yesterday: number) {
   if (yesterday === 0) {
-    return { change: null, tone: "neutral" as Tone };
+    return {
+      change: null,
+      tone: "neutral" as Tone,
+    };
   }
 
   const diff = ((today - yesterday) / yesterday) * 100;
@@ -82,6 +84,18 @@ const toneStyles: Record<Tone, string> = {
   neutral: "text-muted-foreground",
 };
 
+const toneBorders: Record<Tone, string> = {
+  positive: "border-s-success",
+  negative: "border-s-destructive",
+  neutral: "border-s-border",
+};
+
+const toneIconStyles: Record<Tone, string> = {
+  positive: "bg-success text-success-foreground",
+  negative: "bg-destructive text-destructive-foreground",
+  neutral: "bg-primary text-primary-foreground",
+};
+
 function ProductThumbnail({
   imageUrl,
   productName,
@@ -91,7 +105,7 @@ function ProductThumbnail({
 }) {
   if (imageUrl) {
     return (
-      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
+      <div className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-surface">
         <Image
           src={imageUrl}
           alt={productName}
@@ -105,11 +119,61 @@ function ProductThumbnail({
 
   return (
     <div
-      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
+      className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface-subtle text-text-muted"
       aria-hidden="true"
     >
       <ImageIcon className="size-4" />
     </div>
+  );
+}
+
+function DashboardStat({
+  title,
+  value,
+  change,
+  tone,
+  description,
+  icon: Icon,
+}: {
+  title: string;
+  value: string;
+  change: string | null;
+  tone: Tone;
+  description: string;
+  icon: typeof DollarSign;
+}) {
+  return (
+    <Card
+      className={`overflow-hidden rounded-lg border border-border border-s-4 ${toneBorders[tone]} bg-card shadow-none transition-colors hover:bg-surface-subtle`}
+    >
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-text-muted">{title}</p>
+
+            <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
+              {value}
+            </p>
+          </div>
+
+          <div
+            className={`flex size-10 shrink-0 items-center justify-center rounded-md ${toneIconStyles[tone]}`}
+          >
+            <Icon className="size-5" />
+          </div>
+        </div>
+
+        <div className="mt-4 flex min-h-5 items-center gap-2 text-xs">
+          {change !== null && (
+            <span className={`font-semibold tabular-nums ${toneStyles[tone]}`}>
+              {change}
+            </span>
+          )}
+
+          <span className="text-text-muted">{description}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -150,34 +214,42 @@ export default function DashboardPage() {
     }) => updateOrderStatus(orderId, status),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({
+        queryKey: ["dashboard"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
     },
   });
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <div className="h-8 w-32 animate-pulse rounded-md bg-muted" />
-          <div className="h-4 w-72 max-w-full animate-pulse rounded-md bg-muted" />
+      <div className="space-y-7">
+        <div className="space-y-3">
+          <div className="h-8 w-36 animate-pulse rounded-md bg-muted" />
+          <div className="h-4 w-80 max-w-full animate-pulse rounded-md bg-muted" />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
-              className="h-32 animate-pulse rounded-xl border bg-card"
+              className="h-36 animate-pulse rounded-lg border border-border bg-card"
             />
           ))}
         </div>
 
-        <div className="h-96 animate-pulse rounded-xl border bg-card" />
+        <div className="h-88 animate-pulse rounded-lg border border-border bg-card" />
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <div className="h-80 animate-pulse rounded-xl border bg-card" />
-          <div className="h-80 animate-pulse rounded-xl border bg-card" />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <div className="h-80 animate-pulse rounded-lg border border-border bg-card" />
+          <div className="h-80 animate-pulse rounded-lg border border-border bg-card" />
         </div>
       </div>
     );
@@ -185,7 +257,7 @@ export default function DashboardPage() {
 
   if (isError || !data) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-7">
         <PageHeader title={t("title")} description={t("description")} />
 
         <ErrorState
@@ -209,10 +281,12 @@ export default function DashboardPage() {
     orderStatus.find((item) => item.label === "Pending")?.value ?? 0;
 
   const salesCompare = comparePercent(stats.todaySales, stats.yesterdaySales);
+
   const profitCompare = comparePercent(
     stats.todayProfit,
     stats.yesterdayProfit,
   );
+
   const ordersCompare = compareNumber(stats.todayOrders, stats.yesterdayOrders);
 
   const dashboardStats = [
@@ -261,44 +335,39 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="mx-auto w-full max-w-400 space-y-7"
     >
-      {/* Page Header */}
+      {/* Header */}
       <motion.div variants={itemVariants}>
         <PageHeader title={t("title")} description={t("description")} />
       </motion.div>
 
+      {/* Mutation Error */}
       {updateOrderStatusMutation.isError && (
-        <p className="text-sm text-destructive" role="alert">
+        <motion.div
+          variants={itemVariants}
+          className="border-s-4 border-s-destructive bg-destructive px-4 py-3 text-sm text-destructive-foreground"
+          role="alert"
+        >
           {apiErrorMessage(
             updateOrderStatusMutation.error,
             te,
             te("updateOrderStatus"),
           )}
-        </p>
+        </motion.div>
       )}
 
-      {/* KPI Cards */}
+      {/* KPI */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {dashboardStats.map((stat) => (
           <motion.div key={stat.title} variants={itemVariants}>
-            <StatCard
-              label={stat.title}
+            <DashboardStat
+              title={stat.title}
               value={stat.value}
+              change={stat.change}
+              tone={stat.tone}
+              description={stat.description}
               icon={stat.icon}
-              hint={
-                <>
-                  {stat.change !== null && (
-                    <>
-                      <span className={`font-medium ${toneStyles[stat.tone]}`}>
-                        {stat.change}
-                      </span>{" "}
-                    </>
-                  )}
-
-                  <span>{stat.description}</span>
-                </>
-              }
             />
           </motion.div>
         ))}
@@ -306,28 +375,36 @@ export default function DashboardPage() {
 
       {/* Sales Overview */}
       <motion.div variants={itemVariants}>
-        <Card className="shadow-none">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">
-              {t("salesOverview")}
-            </CardTitle>
+        <Card className="rounded-lg border border-border bg-card shadow-none">
+          <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base font-semibold">
+                {t("salesOverview")}
+              </CardTitle>
 
-            <CardDescription>{t("salesOverviewDescription")}</CardDescription>
+              <CardDescription className="text-sm text-text-muted">
+                {t("salesOverviewDescription")}
+              </CardDescription>
+            </div>
           </CardHeader>
 
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-70 w-full">
+          <CardContent className="px-3 py-5 sm:px-6">
+            <ChartContainer config={chartConfig} className="h-75 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={salesData}
                   margin={{
-                    top: 10,
-                    right: 8,
+                    top: 12,
+                    right: 12,
                     left: 0,
                     bottom: 0,
                   }}
                 >
-                  <CartesianGrid vertical={false} stroke="var(--border)" />
+                  <CartesianGrid
+                    vertical={false}
+                    stroke="var(--border)"
+                    strokeDasharray="3 3"
+                  />
 
                   <XAxis
                     dataKey="date"
@@ -335,19 +412,19 @@ export default function DashboardPage() {
                     tickLine={false}
                     tickMargin={10}
                     tick={{
-                      fill: "var(--muted-foreground)",
+                      fill: "var(--text-muted)",
                       fontSize: 12,
                     }}
                   />
 
                   <YAxis
-                    width={48}
+                    width={52}
                     axisLine={false}
                     tickLine={false}
                     tickMargin={10}
                     tickFormatter={(value) => `$${value}`}
                     tick={{
-                      fill: "var(--muted-foreground)",
+                      fill: "var(--text-muted)",
                       fontSize: 12,
                     }}
                   />
@@ -364,10 +441,13 @@ export default function DashboardPage() {
                     dataKey="sales"
                     stroke="var(--primary)"
                     fill="var(--primary)"
-                    fillOpacity={0.08}
-                    strokeWidth={2}
+                    fillOpacity={0.12}
+                    strokeWidth={3}
                     activeDot={{
-                      r: 4,
+                      r: 5,
+                      fill: "var(--primary)",
+                      stroke: "var(--background)",
+                      strokeWidth: 3,
                     }}
                   />
                 </AreaChart>
@@ -377,63 +457,81 @@ export default function DashboardPage() {
         </Card>
       </motion.div>
 
-      {/* Bottom Section */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      {/* Order Status + Recent Orders */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         {/* Order Status */}
         <motion.div variants={itemVariants}>
-          <Card className="h-full shadow-none">
-            <CardHeader>
+          <Card className="h-full rounded-lg border border-border bg-card shadow-none">
+            <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
               <CardTitle className="text-base font-semibold">
                 {t("orderStatus")}
               </CardTitle>
 
-              <CardDescription>{t("orderStatusDescription")}</CardDescription>
+              <CardDescription className="text-sm text-text-muted">
+                {t("orderStatusDescription")}
+              </CardDescription>
             </CardHeader>
 
-            <CardContent>
-              <div className="space-y-5">
+            <CardContent className="px-5 py-6 sm:px-6">
+              <div className="space-y-6">
                 {orderStatus.map((item) => {
                   const percentage =
                     totalStatusOrders === 0
                       ? 0
                       : Math.round((item.value / totalStatusOrders) * 100);
 
+                  const statusColor = orderStatusDot[item.label as OrderStatus];
+
                   return (
-                    <div key={item.label} className="space-y-2">
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <div className="flex min-w-0 items-center gap-2">
+                    <div key={item.label} className="space-y-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
                           <span
-                            className={`size-2 shrink-0 rounded-full ${
-                              orderStatusDot[item.label as OrderStatus]
-                            }`}
+                            className={`size-3 shrink-0 rounded-sm ${statusColor}`}
                           />
 
-                          <span className="truncate">
+                          <span className="truncate text-sm font-medium">
                             {statusLabel[item.label] ?? item.label}
                           </span>
                         </div>
 
-                        <span className="tabular-nums">
-                          <span className="font-medium">{item.value}</span>{" "}
-                          <span className="text-xs text-muted-foreground">
-                            · {percentage}%
+                        <div className="shrink-0 text-sm tabular-nums">
+                          <span className="font-bold">
+                            {formatNumber(item.value, locale)}
                           </span>
-                        </span>
+
+                          <span className="ms-1 text-xs text-text-muted">
+                            ({percentage}%)
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            orderStatusDot[item.label as OrderStatus]
-                          }`}
-                          style={{
+                      <div className="h-2 overflow-hidden rounded-sm bg-surface-subtle">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{
                             width: `${percentage}%`,
                           }}
+                          transition={{
+                            duration: 0.45,
+                            ease: "easeOut",
+                          }}
+                          className={`h-full rounded-sm ${statusColor}`}
                         />
                       </div>
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="mt-7 border-t border-border pt-5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">{t("totalOrders")}</span>
+
+                  <span className="font-bold tabular-nums">
+                    {formatNumber(totalStatusOrders, locale)}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -441,15 +539,15 @@ export default function DashboardPage() {
 
         {/* Recent Orders */}
         <motion.div variants={itemVariants}>
-          <Card className="h-full shadow-none">
-            <CardHeader>
+          <Card className="h-full rounded-lg border border-border bg-card shadow-none">
+            <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
               <div className="flex items-center justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <CardTitle className="text-base font-semibold">
                     {t("recentOrders")}
                   </CardTitle>
 
-                  <CardDescription>
+                  <CardDescription className="mt-1 text-sm text-text-muted">
                     {t("recentOrdersDescription")}
                   </CardDescription>
                 </div>
@@ -459,41 +557,45 @@ export default function DashboardPage() {
                   variant="outline"
                   size="sm"
                   render={<Link href="/orders" />}
+                  className="shrink-0"
                 >
-                  {t("viewAll")}
+                  <span>{t("viewAll")}</span>
+                  <ArrowUpRight className="size-4" />
                 </Button>
               </div>
             </CardHeader>
 
             <CardContent className="p-0">
               {recentOrders.length === 0 ? (
-                <div className="flex min-h-40 items-center justify-center p-6 text-sm text-muted-foreground">
-                  {t("empty")}
+                <div className="flex min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+                  <ShoppingBag className="size-8 text-text-subtle" />
+
+                  <p className="text-sm font-medium">{t("empty")}</p>
                 </div>
               ) : (
                 <>
-                  {/* Desktop Table */}
-                  <div className="hidden max-h-100 overflow-y-auto md:block">
+                  {/* Desktop */}
+                  <div className="hidden max-h-105 overflow-y-auto md:block">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead className="ps-6 text-xs font-medium text-muted-foreground">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="ps-6 text-xs font-semibold text-text-muted">
                             {t("tableOrder")}
                           </TableHead>
 
-                          <TableHead className="text-xs font-medium text-muted-foreground">
+                          <TableHead className="text-xs font-semibold text-text-muted">
                             {t("tableCustomer")}
                           </TableHead>
 
-                          <TableHead className="text-xs font-medium text-muted-foreground">
+                          <TableHead className="text-xs font-semibold text-text-muted">
                             {t("tableItems")}
                           </TableHead>
 
-                          <TableHead className="text-xs font-medium text-muted-foreground">
+                          <TableHead className="text-xs font-semibold text-text-muted">
                             {t("tableAmount")}
                           </TableHead>
 
-                          <TableHead className="text-xs font-medium text-muted-foreground">
+                          <TableHead className="text-xs font-semibold text-text-muted">
                             {t("tableStatus")}
                           </TableHead>
 
@@ -504,21 +606,24 @@ export default function DashboardPage() {
                       <TableBody>
                         {recentOrders.map((order) => {
                           const firstItem = order.items[0];
+
                           const additionalItems = Math.max(
                             order.items.length - 1,
                             0,
                           );
 
                           return (
-                            <TableRow key={order._id}>
-                              <TableCell className="ps-6 font-medium tabular-nums">
+                            <TableRow key={order._id} className="group">
+                              <TableCell className="ps-6 font-semibold tabular-nums">
                                 <span dir="ltr">#{shortId(order._id)}</span>
                               </TableCell>
 
-                              <TableCell>{order.customer}</TableCell>
+                              <TableCell className="font-medium">
+                                {order.customer}
+                              </TableCell>
 
                               <TableCell>
-                                <div className="flex min-w-0 items-center gap-2">
+                                <div className="flex min-w-0 items-center gap-3">
                                   {firstItem && (
                                     <ProductThumbnail
                                       imageUrl={firstItem.imageUrl}
@@ -533,7 +638,7 @@ export default function DashboardPage() {
                                     </span>
 
                                     {additionalItems > 0 && (
-                                      <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                      <span className="shrink-0 text-xs font-semibold text-text-muted">
                                         +{formatNumber(additionalItems, locale)}
                                       </span>
                                     )}
@@ -541,7 +646,7 @@ export default function DashboardPage() {
                                 </div>
                               </TableCell>
 
-                              <TableCell className="font-medium tabular-nums">
+                              <TableCell className="font-bold tabular-nums">
                                 {formatCurrency(order.total, locale)}
                               </TableCell>
 
@@ -565,10 +670,11 @@ export default function DashboardPage() {
                     </Table>
                   </div>
 
-                  {/* Mobile Cards */}
-                  <div className="max-h-70 space-y-2 overflow-y-auto p-4 md:hidden">
+                  {/* Mobile */}
+                  <div className="max-h-105 space-y-3 overflow-y-auto p-4 md:hidden">
                     {recentOrders.map((order) => {
                       const firstItem = order.items[0];
+
                       const additionalItems = Math.max(
                         order.items.length - 1,
                         0,
@@ -577,7 +683,7 @@ export default function DashboardPage() {
                       return (
                         <div
                           key={order._id}
-                          className="rounded-lg border bg-card p-4"
+                          className="rounded-md border border-border bg-surface p-4"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-3">
@@ -589,24 +695,24 @@ export default function DashboardPage() {
                               )}
 
                               <div className="min-w-0">
-                                <p className="text-sm font-medium">
+                                <p className="text-sm font-semibold">
                                   {order.customer}{" "}
                                   <span
                                     dir="ltr"
-                                    className="text-xs font-normal text-muted-foreground tabular-nums"
+                                    className="text-xs font-normal text-text-muted tabular-nums"
                                   >
                                     #{shortId(order._id)}
                                   </span>
                                 </p>
 
                                 <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                                  <p className="truncate text-sm text-muted-foreground">
+                                  <p className="truncate text-sm text-text-muted">
                                     {firstItem?.name ??
                                       summarizeItems(order, tOrders).label}
                                   </p>
 
                                   {additionalItems > 0 && (
-                                    <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                    <span className="shrink-0 text-xs font-semibold text-text-muted">
                                       +{formatNumber(additionalItems, locale)}
                                     </span>
                                   )}
@@ -623,8 +729,8 @@ export default function DashboardPage() {
                             />
                           </div>
 
-                          <div className="mt-4 flex items-center justify-between gap-3">
-                            <span className="font-medium tabular-nums">
+                          <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+                            <span className="font-bold tabular-nums">
                               {formatCurrency(order.total, locale)}
                             </span>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -33,7 +33,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { createOrder, getProducts, Product } from "@/lib/api";
-import { useRouter } from "@/i18n/navigation";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import AddProductLoading from "@/components/AddProductLoading";
@@ -60,18 +59,20 @@ function ProductThumbnail({
   product: Product;
   size?: "sm" | "md";
 }) {
-  const sizeClass = size === "md" ? "size-12" : "size-9";
+  const sizeClass = size === "md" ? "size-14" : "size-10";
   const iconClass = size === "md" ? "size-5" : "size-4";
 
   if (product.imageUrl) {
     return (
       <div
-        className={`shrink-0 overflow-hidden rounded-md border bg-muted ${sizeClass}`}
+        className={`shrink-0 relative overflow-hidden rounded-md border border-border bg-surface ${sizeClass}`}
       >
-        <img
+        <Image
           src={product.imageUrl}
           alt={product.name}
-          className="h-full w-full object-cover"
+          fill
+          
+          className=" object-cover"
         />
       </div>
     );
@@ -79,7 +80,7 @@ function ProductThumbnail({
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-md border bg-muted/50 text-muted-foreground ${sizeClass}`}
+      className={`flex shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-muted ${sizeClass}`}
       aria-hidden="true"
     >
       <ImageIcon className={iconClass} />
@@ -123,10 +124,6 @@ export default function NewOrderPage() {
 
   const products = data?.products ?? [];
 
-  // --------------------------------------------------------------------------
-  // Live calculation
-  // --------------------------------------------------------------------------
-
   const lines = rows.map((row) => ({
     row,
     product: products.find((product) => product._id === row.productId),
@@ -156,10 +153,6 @@ export default function NewOrderPage() {
 
   const estimatedProfit = total - itemsCost - deliveryCostNumber;
 
-  // --------------------------------------------------------------------------
-  // Mutation
-  // --------------------------------------------------------------------------
-
   const createOrderMutation = useMutation({
     mutationFn: createOrder,
 
@@ -187,10 +180,6 @@ export default function NewOrderPage() {
   if (isLoading) {
     return <AddProductLoading />;
   }
-
-  // --------------------------------------------------------------------------
-  // Helpers
-  // --------------------------------------------------------------------------
 
   function clearError(field: keyof FormErrors) {
     setErrors((current) => ({
@@ -249,10 +238,6 @@ export default function NewOrderPage() {
     });
   }
 
-  // --------------------------------------------------------------------------
-  // Submit
-  // --------------------------------------------------------------------------
-
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -275,8 +260,6 @@ export default function NewOrderPage() {
       nextErrors.deliveryCost = tv("mustBeZeroOrMore");
     }
 
-    // مجموع الكمية المطلوبة لكل منتج.
-    // مهم إذا نفس المنتج موجود بأكثر من row.
     const quantityByProduct = new Map<string, number>();
 
     for (const row of rows) {
@@ -343,55 +326,53 @@ export default function NewOrderPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-400 space-y-7 overflow-x-hidden">
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Button
-            nativeButton={false}
-            variant="outline"
-            size="icon"
-            className="mt-0.5 shrink-0"
-            render={<Link href="/orders" />}
-            aria-label={t("backAria")}
-          >
-            <ArrowLeft className="size-4 rtl:-scale-x-100" />
-          </Button>
+      <div className="space-y-4">
+        <Button
+          nativeButton={false}
+          variant="ghost"
+          size="sm"
+          render={<Link href="/orders" />}
+          className="-ms-2 w-fit"
+        >
+          <ArrowLeft className="size-4 rtl:-scale-x-100" />
+          {t("backToOrders")}
+        </Button>
 
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {t("addTitle")}
-            </h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+            {t("addTitle")}
+          </h1>
 
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("addDescription")}
-            </p>
-          </div>
+          <p className="mt-1.5 text-sm text-text-muted">
+            {t("addDescription")}
+          </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Customer */}
-        <Card className="shadow-none">
-          <CardHeader>
+        <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">
+          <CardHeader className="border-b border-border">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg border bg-muted/50">
-                <ClipboardList className="size-4 text-muted-foreground" />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <ClipboardList className="size-4" />
               </div>
 
               <div>
-                <CardTitle className="text-base">
+                <CardTitle className="text-base font-semibold text-text">
                   {t("customerInformation")}
                 </CardTitle>
 
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-text-muted">
                   {t("customerInformationDescription")}
                 </p>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="p-5">
             <FieldGroup>
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field>
@@ -440,21 +421,28 @@ export default function NewOrderPage() {
         </Card>
 
         {/* Products */}
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">{t("products")}</CardTitle>
+        <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-base font-semibold text-text">
+              {t("products")}
+            </CardTitle>
 
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-text-muted">
               {t("productsDescription")}
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-5">
             {lines.map(({ row, product }, index) => (
-              <div key={row.id} className="rounded-xl border p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    {t("productNumber", { number: index + 1 })}
+              <div
+                key={row.id}
+                className="space-y-5 rounded-md border border-border p-4"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm font-semibold text-text">
+                    {t("productNumber", {
+                      number: index + 1,
+                    })}
                   </span>
 
                   {rows.length > 1 && (
@@ -463,7 +451,9 @@ export default function NewOrderPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeRow(row.id)}
-                      aria-label={t("productNumber", { number: index + 1 })}
+                      aria-label={t("productNumber", {
+                        number: index + 1,
+                      })}
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -484,19 +474,19 @@ export default function NewOrderPage() {
                     >
                       <SelectTrigger
                         id={`product-${row.id}`}
-                        className="h-auto min-h-10 w-full py-2"
+                        className="h-auto min-h-12 w-full py-2"
                         aria-invalid={!!rowErrors[row.id]}
                       >
                         {product ? (
-                          <div className="flex w-fit min-w-0 items-center gap-3">
-                            <ProductThumbnail product={product} size="sm" />
+                          <div className="flex min-w-0 items-center gap-3">
+                            <ProductThumbnail product={product} size="md" />
 
                             <div className="min-w-0 text-start">
-                              <p className="truncate text-sm font-medium">
+                              <p className="truncate text-sm font-semibold text-text">
                                 {product.name}
                               </p>
 
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-text-muted">
                                 {formatCurrency(product.price, locale)}
                                 {" · "}
                                 {formatNumber(product.stock, locale)} available
@@ -516,12 +506,14 @@ export default function NewOrderPage() {
                             disabled={item.stock === 0}
                           >
                             <div className="flex min-w-0 items-center gap-3">
-                              <ProductThumbnail product={item} size="sm" />
+                              <ProductThumbnail product={item} />
 
                               <div className="min-w-0">
-                                <p className="truncate text-sm">{item.name}</p>
+                                <p className="truncate text-sm font-medium">
+                                  {item.name}
+                                </p>
 
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-text-muted">
                                   {formatCurrency(item.price, locale)}
                                   {" · "}
                                   {formatNumber(item.stock, locale)} available
@@ -548,7 +540,7 @@ export default function NewOrderPage() {
                     )}
                   </Field>
 
-                  <div className="grid gap-5 sm:grid-cols-3">
+                  <div className="grid gap-5 sm:grid-cols-2">
                     <Field>
                       <FieldLabel htmlFor={`quantity-${row.id}`}>
                         {t("quantity")}
@@ -569,7 +561,7 @@ export default function NewOrderPage() {
                       />
                     </Field>
 
-                    <Field className="sm:col-span-2">
+                    <Field>
                       <FieldLabel htmlFor={`unit-price-${row.id}`}>
                         {t("sellingPriceUnit")}
                       </FieldLabel>
@@ -606,102 +598,104 @@ export default function NewOrderPage() {
         </Card>
 
         {/* Delivery */}
-        <Card className="shadow-none">
-          <CardHeader>
+        <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">
+          <CardHeader className="border-b border-border">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg border bg-muted/50">
-                <Truck className="size-4 text-muted-foreground" />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <Truck className="size-4" />
               </div>
 
               <div>
-                <CardTitle className="text-base">{t("delivery")}</CardTitle>
+                <CardTitle className="text-base font-semibold text-text">
+                  {t("delivery")}
+                </CardTitle>
 
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-text-muted">
                   {t("deliveryDescription")}
                 </p>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent>
-            <FieldGroup>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="deliveryCharged">
-                    {t("deliveryCharged")}
-                  </FieldLabel>
+          <CardContent className="p-5">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="deliveryCharged">
+                  {t("deliveryCharged")}
+                </FieldLabel>
 
-                  <Input
-                    id="deliveryCharged"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={deliveryCharged}
-                    onChange={bindInput("deliveryCharged", setDeliveryCharged)}
-                    aria-invalid={!!errors.deliveryCharged}
-                  />
+                <Input
+                  id="deliveryCharged"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliveryCharged}
+                  onChange={bindInput("deliveryCharged", setDeliveryCharged)}
+                  aria-invalid={!!errors.deliveryCharged}
+                />
 
-                  {errors.deliveryCharged ? (
-                    <p className="text-sm text-destructive">
-                      {errors.deliveryCharged}
-                    </p>
-                  ) : (
-                    <FieldDescription>
-                      {t("deliveryChargedHint")}
-                    </FieldDescription>
-                  )}
-                </Field>
+                {errors.deliveryCharged ? (
+                  <p className="text-sm text-destructive">
+                    {errors.deliveryCharged}
+                  </p>
+                ) : (
+                  <FieldDescription>
+                    {t("deliveryChargedHint")}
+                  </FieldDescription>
+                )}
+              </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="deliveryCost">
-                    {t("deliveryCost")}
-                  </FieldLabel>
+              <Field>
+                <FieldLabel htmlFor="deliveryCost">
+                  {t("deliveryCost")}
+                </FieldLabel>
 
-                  <Input
-                    id="deliveryCost"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={deliveryCost}
-                    onChange={bindInput("deliveryCost", setDeliveryCost)}
-                    aria-invalid={!!errors.deliveryCost}
-                  />
+                <Input
+                  id="deliveryCost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliveryCost}
+                  onChange={bindInput("deliveryCost", setDeliveryCost)}
+                  aria-invalid={!!errors.deliveryCost}
+                />
 
-                  {errors.deliveryCost ? (
-                    <p className="text-sm text-destructive">
-                      {errors.deliveryCost}
-                    </p>
-                  ) : (
-                    <FieldDescription>{t("deliveryCostHint")}</FieldDescription>
-                  )}
-                </Field>
-              </div>
-            </FieldGroup>
+                {errors.deliveryCost ? (
+                  <p className="text-sm text-destructive">
+                    {errors.deliveryCost}
+                  </p>
+                ) : (
+                  <FieldDescription>{t("deliveryCostHint")}</FieldDescription>
+                )}
+              </Field>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Order Summary */}
-        <Card className="shadow-none">
-          <CardHeader>
+        {/* Summary */}
+        <Card className="overflow-hidden rounded-lg border border-border border-s-success bg-card shadow-none">
+          <CardHeader className="border-b border-border">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg border bg-muted/50">
-                <Calculator className="size-4 text-muted-foreground" />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-success text-success-foreground">
+                <Calculator className="size-4" />
               </div>
 
               <div>
-                <CardTitle className="text-base">{t("summary")}</CardTitle>
+                <CardTitle className="text-base font-semibold text-text">
+                  {t("summary")}
+                </CardTitle>
 
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-text-muted">
                   {t("summaryDescription")}
                 </p>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="p-5">
             <div className="space-y-4">
               {validLines.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-text-muted">
                   {t("selectForSummary")}
                 </p>
               ) : (
@@ -710,47 +704,47 @@ export default function NewOrderPage() {
                     key={line.row.id}
                     className="flex items-center justify-between gap-4"
                   >
-                    <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
                       {line.product && (
-                        <ProductThumbnail product={line.product} size="sm" />
+                        <ProductThumbnail product={line.product} />
                       )}
 
-                      <span className="truncate text-sm text-muted-foreground">
+                      <span className="truncate text-sm text-text-muted">
                         {line.product?.name} ×{" "}
                         {formatNumber(line.quantity, locale)}
                       </span>
                     </div>
 
-                    <span className="shrink-0 text-sm font-medium tabular-nums">
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-text">
                       {formatCurrency(line.quantity * line.unitPrice, locale)}
                     </span>
                   </div>
                 ))
               )}
 
-              <div className="flex items-center justify-between gap-4 border-t pt-4">
-                <span className="text-sm text-muted-foreground">
+              <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+                <span className="text-sm text-text-muted">
                   {t("deliveryCustomerPays")}
                 </span>
 
-                <span className="text-sm font-medium tabular-nums">
+                <span className="text-sm font-semibold tabular-nums text-text">
                   {formatCurrency(deliveryChargedNumber, locale)}
                 </span>
               </div>
 
-              <div className="border-t pt-4">
+              <div className="border-t border-border pt-4">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="font-medium">{t("total")}</span>
+                  <span className="font-semibold text-text">{t("total")}</span>
 
-                  <span className="text-2xl font-semibold tracking-tight tabular-nums">
+                  <span className="text-2xl font-bold tracking-tight tabular-nums text-text">
                     {formatCurrency(total, locale)}
                   </span>
                 </div>
 
                 {validLines.length > 0 && (
                   <>
-                    <div className="mt-2 flex items-center justify-between gap-4">
-                      <span className="text-sm text-muted-foreground">
+                    <div className="mt-3 flex items-center justify-between gap-4">
+                      <span className="text-sm text-text-muted">
                         {t("deliveryCostRow")}
                       </span>
 
@@ -759,16 +753,16 @@ export default function NewOrderPage() {
                       </span>
                     </div>
 
-                    <div className="mt-2 flex items-center justify-between gap-4">
-                      <span className="text-sm text-muted-foreground">
+                    <div className="mt-3 flex items-center justify-between gap-4">
+                      <span className="text-sm text-text-muted">
                         {t("estimatedProfit")}
                       </span>
 
                       <span
                         className={
                           estimatedProfit < 0
-                            ? "text-sm font-medium text-destructive tabular-nums"
-                            : "text-sm font-medium text-success tabular-nums"
+                            ? "text-sm font-semibold text-destructive tabular-nums"
+                            : "text-sm font-semibold text-success tabular-nums"
                         }
                       >
                         {formatCurrency(estimatedProfit, locale)}
@@ -782,9 +776,12 @@ export default function NewOrderPage() {
         </Card>
 
         {createOrderMutation.isError && (
-          <p className="text-sm text-destructive" role="alert">
+          <div
+            className="border-s-4 border-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
+            role="alert"
+          >
             {apiErrorMessage(createOrderMutation.error, te, te("createOrder"))}
-          </p>
+          </div>
         )}
 
         {/* Actions */}

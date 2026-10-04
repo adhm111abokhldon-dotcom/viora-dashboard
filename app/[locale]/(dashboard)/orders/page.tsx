@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import {
   Clock3,
   DollarSign,
@@ -14,7 +15,6 @@ import {
   ShoppingBag,
   UserRound,
 } from "lucide-react";
-import { motion } from "motion/react";
 import {
   keepPreviousData,
   useMutation,
@@ -52,17 +52,15 @@ import { Pagination } from "@/components/ui/Pagination";
 import ProductsLoading from "@/components/ProductsLoading";
 import OrderActions from "@/components/OrderActions";
 import StatusBadge from "@/components/StatusBadge";
-import StatCard from "@/components/StatCard";
 import PageHeader from "@/components/PageHeader";
 import ErrorState from "@/components/ErrorState";
 import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 
-// الربح: أخضر لو موجب، أحمر لو خسارة، وشرطة للملغى (ما بينحسب بالإيراد)
 function ProfitText({ order, locale }: { order: Order; locale: "en" | "ar" }) {
   if (order.status === "Cancelled") {
-    return <span className="text-muted-foreground">—</span>;
+    return <span className="text-text-muted">—</span>;
   }
 
   const isLoss = order.profit < 0;
@@ -71,8 +69,8 @@ function ProfitText({ order, locale }: { order: Order; locale: "en" | "ar" }) {
     <span
       className={
         isLoss
-          ? "font-medium text-destructive tabular-nums"
-          : "font-medium text-success tabular-nums"
+          ? "font-semibold text-destructive tabular-nums"
+          : "font-semibold text-success tabular-nums"
       }
     >
       {isLoss ? "-" : "+"}
@@ -90,13 +88,14 @@ function ProductThumbnail({
 }) {
   if (imageUrl) {
     return (
-      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
+      <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface">
         <Image
           src={imageUrl}
           alt={productName}
-          fill
-          sizes="40px"
-          className="object-cover"
+          width={56}
+          height={56}
+          loading="lazy"
+          className="size-full object-cover"
         />
       </div>
     );
@@ -104,10 +103,120 @@ function ProductThumbnail({
 
   return (
     <div
-      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
+      className="flex size-14 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-muted"
       aria-hidden="true"
     >
-      <ImageIcon className="size-4" />
+      <ImageIcon className="size-5" />
+    </div>
+  );
+}
+
+type SummaryTone = "primary" | "success" | "warning";
+
+const summaryStyles: Record<
+  SummaryTone,
+  {
+    icon: string;
+    border: string;
+  }
+> = {
+  primary: {
+    icon: "bg-primary text-primary-foreground",
+    border: "border-s-primary",
+  },
+  success: {
+    icon: "bg-success text-success-foreground",
+    border: "border-s-success",
+  },
+  warning: {
+    icon: "bg-warning text-warning-foreground",
+    border: "border-s-warning",
+  },
+};
+
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "primary",
+  hint,
+}: {
+  label: string;
+  value: string;
+  icon: typeof ShoppingBag;
+  tone?: SummaryTone;
+  hint?: string;
+}) {
+  const styles = summaryStyles[tone];
+
+  return (
+    <div
+      className={`flex min-w-0 items-center gap-4 rounded-lg border border-border border-s-4 bg-card px-5 py-5 ${styles.border}`}
+    >
+      <div
+        className={`flex size-11 shrink-0 items-center justify-center rounded-md ${styles.icon}`}
+      >
+        <Icon className="size-5" />
+      </div>
+
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-text-muted">{label}</p>
+
+        <p className="mt-1 text-2xl font-bold leading-none tabular-nums text-text">
+          {value}
+        </p>
+
+        {hint && (
+          <p className="mt-1.5 truncate text-xs text-text-muted">{hint}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OrderProduct({
+  order,
+  label,
+  additionalItems,
+  quantity,
+  locale,
+  t,
+}: {
+  order: Order;
+  label: string;
+  additionalItems: number;
+  quantity: number;
+  locale: "en" | "ar";
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  const firstItem = order.items[0];
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      {firstItem && (
+        <ProductThumbnail
+          imageUrl={firstItem.imageUrl}
+          productName={firstItem.name}
+        />
+      )}
+
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className="truncate text-sm font-medium text-text">{label}</p>
+
+          {additionalItems > 0 && (
+            <span className="shrink-0 text-xs font-semibold text-text-muted">
+              +{formatNumber(additionalItems, locale)}
+            </span>
+          )}
+        </div>
+
+        <p className="mt-0.5 text-xs text-text-muted">
+          {t("quantityShort", {
+            quantity: formatNumber(quantity, locale),
+          })}
+        </p>
+      </div>
     </div>
   );
 }
@@ -131,7 +240,6 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // ما منبعت طلب مع كل حرف: بنستنى 400ms بعد آخر ضغطة
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
@@ -145,7 +253,11 @@ export default function OrdersPage() {
 
   const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ["orders", page, limit, search, statusFilter],
-    queryFn: () => getOrders(page, limit, { search, status: statusFilter }),
+    queryFn: () =>
+      getOrders(page, limit, {
+        search,
+        status: statusFilter,
+      }),
     placeholderData: keepPreviousData,
   });
 
@@ -163,9 +275,17 @@ export default function OrdersPage() {
     }) => updateOrderStatus(orderId, status),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["dashboard"],
+      });
     },
   });
 
@@ -179,14 +299,19 @@ export default function OrdersPage() {
   }
 
   function handleStatusChange(orderId: string, status: OrderStatus) {
-    updateOrderStatusMutation.mutate({ orderId, status });
+    updateOrderStatusMutation.mutate({
+      orderId,
+      status,
+    });
   }
 
-  if (isLoading) return <ProductsLoading />;
+  if (isLoading) {
+    return <ProductsLoading />;
+  }
 
   if (isError) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-400 space-y-6">
         <PageHeader title={t("title")} description={t("description")} />
 
         <ErrorState
@@ -202,9 +327,9 @@ export default function OrdersPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="mx-auto w-full max-w-400 space-y-7 overflow-x-hidden"
     >
-      {/* Page Header */}
+      {/* Header */}
       <motion.div variants={itemVariants}>
         <PageHeader
           title={t("title")}
@@ -222,46 +347,53 @@ export default function OrdersPage() {
         />
       </motion.div>
 
-      {/* لو تغيير الحالة فشل (مثلاً مخزون ما كفى لإعادة أوردر ملغى) */}
+      {/* Status Update Error */}
       {updateOrderStatusMutation.isError && (
-        <p className="text-sm text-destructive" role="alert">
-          {apiErrorMessage(
-            updateOrderStatusMutation.error,
-            te,
-            te("updateOrderStatus"),
-          )}
-        </p>
+        <motion.div variants={itemVariants}>
+          <div
+            className="border-s-4 border-s-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
+            role="alert"
+          >
+            {apiErrorMessage(
+              updateOrderStatusMutation.error,
+              te,
+              te("updateOrderStatus"),
+            )}
+          </div>
+        </motion.div>
       )}
 
-      {/* Summary (محسوبة على كل الأوردرات، مش بس الصفحة الحالية) */}
+      {/* Summary */}
       <motion.div
         variants={itemVariants}
         className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
-        <StatCard
+        <SummaryCard
           label={t("totalOrders")}
           value={formatNumber(stats?.totalOrders ?? 0, locale)}
           icon={ShoppingBag}
+          tone="primary"
         />
 
-        <StatCard
+        <SummaryCard
           label={t("pending")}
           value={formatNumber(stats?.pendingOrders ?? 0, locale)}
           icon={Clock3}
           tone="warning"
         />
 
-        <StatCard
+        <SummaryCard
           label={t("delivered")}
           value={formatNumber(stats?.deliveredOrders ?? 0, locale)}
           icon={Package}
           tone="success"
         />
 
-        <StatCard
+        <SummaryCard
           label={t("revenue")}
           value={formatCurrency(stats?.revenue ?? 0, locale)}
           icon={DollarSign}
+          tone="primary"
           hint={t("profitHint", {
             amount: formatCurrency(stats?.profit ?? 0, locale),
           })}
@@ -270,19 +402,21 @@ export default function OrdersPage() {
 
       {/* Orders */}
       <motion.div variants={itemVariants}>
-        <Card className="shadow-none">
-          <CardHeader className="gap-4 border-b">
-            <div className="flex flex-col gap-1">
-              <CardTitle className="text-base">{t("allOrders")}</CardTitle>
+        <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">
+          <CardHeader className="gap-4 border-b border-border">
+            <div>
+              <CardTitle className="text-base font-semibold text-text">
+                {t("allOrders")}
+              </CardTitle>
 
-              <p className="text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-text-muted">
                 {t("allOrdersDescription")}
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1 sm:max-w-sm">
-                <Search className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative min-w-0 flex-1 sm:max-w-sm">
+                <Search className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" />
 
                 <Input
                   value={searchInput}
@@ -313,10 +447,13 @@ export default function OrdersPage() {
 
                 <SelectContent>
                   <SelectItem value="all">{tStatus("all")}</SelectItem>
+
                   <SelectItem value="Pending">{tStatus("pending")}</SelectItem>
+
                   <SelectItem value="Delivered">
                     {tStatus("delivered")}
                   </SelectItem>
+
                   <SelectItem value="Cancelled">
                     {tStatus("cancelled")}
                   </SelectItem>
@@ -325,18 +462,14 @@ export default function OrdersPage() {
             </div>
           </CardHeader>
 
-          <CardContent
-            className={`p-0 transition-opacity ${
-              isFetching ? "opacity-60" : ""
-            }`}
-          >
+          <CardContent className="p-0">
             {orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-                <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/40">
-                  <ShoppingBag className="size-4 text-muted-foreground" />
+                <div className="flex size-10 items-center justify-center rounded-md border border-border bg-surface text-text-muted">
+                  <ShoppingBag className="size-4" />
                 </div>
 
-                <p className="text-sm font-medium">
+                <p className="text-sm font-medium text-text">
                   {hasFilters ? t("emptyFiltered") : t("empty")}
                 </p>
 
@@ -357,18 +490,28 @@ export default function OrdersPage() {
               </div>
             ) : (
               <>
-                {/* Desktop Table */}
+                {/* Desktop */}
                 <div className="hidden md:block">
-                  <div className="max-h-130 overflow-y-auto">
+                  <div
+                    className={`max-h-170 overflow-y-auto overflow-x-hidden transition-opacity ${
+                      isFetching ? "opacity-60" : ""
+                    }`}
+                  >
                     <Table>
-                      <TableHeader className="sticky top-0 z-10 bg-background">
-                        <TableRow>
+                      <TableHeader className="sticky top-0 z-10 bg-card">
+                        <TableRow className="border-b border-border hover:bg-transparent">
                           <TableHead>{t("tableOrder")}</TableHead>
+
                           <TableHead>{t("tableCustomer")}</TableHead>
+
                           <TableHead>{t("tableItems")}</TableHead>
+
                           <TableHead>{t("tableTotal")}</TableHead>
+
                           <TableHead>{t("tableProfit")}</TableHead>
+
                           <TableHead>{t("tableStatus")}</TableHead>
+
                           <TableHead className="w-12" />
                         </TableRow>
                       </TableHeader>
@@ -377,36 +520,42 @@ export default function OrdersPage() {
                         {orders.map((order) => {
                           const { label, quantity } = summarizeItems(order, t);
 
-                          const firstItem = order.items[0];
                           const additionalItems = Math.max(
                             order.items.length - 1,
                             0,
                           );
 
                           return (
-                            <TableRow key={order._id}>
-                              <TableCell>
-                                <p className="font-medium tabular-nums">
+                            <TableRow
+                              key={order._id}
+                              className="border-b border-border last:border-b-0"
+                            >
+                              {/* Order */}
+                              <TableCell className="py-4">
+                                <p className="font-semibold tabular-nums text-text">
                                   <span dir="ltr">#{shortId(order._id)}</span>
                                 </p>
 
-                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                <p className="mt-1 text-xs text-text-muted">
                                   {formatDate(order.createdAt, locale)}
                                 </p>
                               </TableCell>
 
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <div className="flex size-8 items-center justify-center rounded-full border bg-muted">
-                                    <UserRound className="size-4 text-muted-foreground" />
+                              {/* Customer */}
+                              <TableCell className="py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-muted">
+                                    <UserRound className="size-4" />
                                   </div>
 
-                                  <div>
-                                    <p>{order.customer}</p>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-text">
+                                      {order.customer}
+                                    </p>
 
                                     <p
                                       dir="ltr"
-                                      className="mt-0.5 text-xs text-muted-foreground"
+                                      className="mt-0.5 text-xs text-text-muted"
                                     >
                                       {order.phone}
                                     </p>
@@ -414,51 +563,26 @@ export default function OrdersPage() {
                                 </div>
                               </TableCell>
 
-                              <TableCell>
-                                <div className="flex min-w-0 items-center gap-2">
-                                  {firstItem && (
-                                    <ProductThumbnail
-                                      imageUrl={firstItem.imageUrl}
-                                      productName={firstItem.name}
-                                    />
-                                  )}
-
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      <p className="max-w-44 truncate">
-                                        {label}
-                                      </p>
-
-                                      {additionalItems > 0 && (
-                                        <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                                          +
-                                          {formatNumber(
-                                            additionalItems,
-                                            locale,
-                                          )}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                      {t("quantityShort", {
-                                        quantity: formatNumber(
-                                          quantity,
-                                          locale,
-                                        ),
-                                      })}
-                                    </p>
-                                  </div>
-                                </div>
+                              {/* Items */}
+                              <TableCell className="py-4">
+                                <OrderProduct
+                                  order={order}
+                                  label={label}
+                                  additionalItems={additionalItems}
+                                  quantity={quantity}
+                                  locale={locale}
+                                  t={t}
+                                />
                               </TableCell>
 
-                              <TableCell>
-                                <p className="font-medium tabular-nums">
+                              {/* Total */}
+                              <TableCell className="py-4">
+                                <p className="font-semibold tabular-nums text-text">
                                   {formatCurrency(order.total, locale)}
                                 </p>
 
                                 {order.deliveryCharged > 0 && (
-                                  <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                                  <p className="mt-1 text-xs text-text-muted tabular-nums">
                                     {t("inclDelivery", {
                                       amount: formatCurrency(
                                         order.deliveryCharged,
@@ -469,15 +593,18 @@ export default function OrdersPage() {
                                 )}
                               </TableCell>
 
-                              <TableCell>
+                              {/* Profit */}
+                              <TableCell className="py-4">
                                 <ProfitText order={order} locale={locale} />
                               </TableCell>
 
-                              <TableCell>
+                              {/* Status */}
+                              <TableCell className="py-4">
                                 <StatusBadge status={order.status} />
                               </TableCell>
 
-                              <TableCell>
+                              {/* Actions */}
+                              <TableCell className="py-4">
                                 <OrderActions
                                   order={order}
                                   onStatusChange={handleStatusChange}
@@ -494,32 +621,35 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
-                {/* Mobile Orders */}
+                {/* Mobile */}
                 <div className="md:hidden">
-                  <div className="max-h-140 divide-y overflow-y-auto">
+                  <div
+                    className={`max-h-170 divide-y divide-border overflow-y-auto overflow-x-hidden transition-opacity ${
+                      isFetching ? "opacity-60" : ""
+                    }`}
+                  >
                     {orders.map((order) => {
                       const { label, quantity } = summarizeItems(order, t);
 
-                      const firstItem = order.items[0];
                       const additionalItems = Math.max(
                         order.items.length - 1,
                         0,
                       );
 
                       return (
-                        <div key={order._id} className="space-y-4 p-4">
+                        <div key={order._id} className="space-y-5 p-5">
                           {/* Order Header */}
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-semibold tabular-nums">
+                                <p className="font-semibold tabular-nums text-text">
                                   <span dir="ltr">#{shortId(order._id)}</span>
                                 </p>
 
                                 <StatusBadge status={order.status} />
                               </div>
 
-                              <p className="mt-1 text-xs text-muted-foreground">
+                              <p className="mt-1 text-xs text-text-muted">
                                 {formatDate(order.createdAt, locale)}
                               </p>
                             </div>
@@ -535,100 +665,86 @@ export default function OrdersPage() {
 
                           {/* Customer */}
                           <div className="flex items-center gap-3">
-                            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border bg-muted">
-                              <UserRound className="size-4 text-muted-foreground" />
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-muted">
+                              <UserRound className="size-4" />
                             </div>
 
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
+                              <p className="truncate text-sm font-semibold text-text">
                                 {order.customer}
                               </p>
 
                               <p
                                 dir="ltr"
-                                className="text-xs text-muted-foreground"
+                                className="mt-0.5 text-xs text-text-muted"
                               >
                                 {order.phone}
                               </p>
                             </div>
                           </div>
 
-                          {/* Order Details */}
-                          <div className="rounded-md border p-3">
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-                              <div className="min-w-0">
-                                <p className="text-xs text-muted-foreground">
-                                  {t("items")}
-                                </p>
+                          {/* Order Metrics */}
+                          <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border">
+                            {/* Product */}
+                            <div className="border-e border-b border-border p-3.5">
+                              <p className="text-xs font-medium text-text-muted">
+                                {t("items")}
+                              </p>
 
-                                <div className="mt-1 flex min-w-0 items-center gap-2">
-                                  {firstItem && (
-                                    <ProductThumbnail
-                                      imageUrl={firstItem.imageUrl}
-                                      productName={firstItem.name}
-                                    />
-                                  )}
-
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      <p className="truncate text-sm font-medium">
-                                        {label}
-                                      </p>
-
-                                      {additionalItems > 0 && (
-                                        <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                                          +
-                                          {formatNumber(
-                                            additionalItems,
-                                            locale,
-                                          )}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
+                              <div className="mt-2">
+                                <OrderProduct
+                                  order={order}
+                                  label={label}
+                                  additionalItems={additionalItems}
+                                  quantity={quantity}
+                                  locale={locale}
+                                  t={t}
+                                />
                               </div>
+                            </div>
 
-                              <div>
-                                <p className="text-xs text-muted-foreground">
-                                  {t("quantity")}
+                            {/* Quantity */}
+                            <div className="border-b border-border p-3.5">
+                              <p className="text-xs font-medium text-text-muted">
+                                {t("quantity")}
+                              </p>
+
+                              <p className="mt-2 text-sm font-semibold tabular-nums text-text">
+                                {formatNumber(quantity, locale)}
+                              </p>
+                            </div>
+
+                            {/* Total */}
+                            <div className="border-e border-border p-3.5">
+                              <p className="text-xs font-medium text-text-muted">
+                                {t("total")}
+                              </p>
+
+                              <p className="mt-2 text-sm font-semibold tabular-nums text-text">
+                                {formatCurrency(order.total, locale)}
+                              </p>
+
+                              {order.deliveryCharged > 0 && (
+                                <p className="mt-0.5 text-xs text-text-muted tabular-nums">
+                                  {t("inclDelivery", {
+                                    amount: formatCurrency(
+                                      order.deliveryCharged,
+                                      locale,
+                                    ),
+                                  })}
                                 </p>
+                              )}
+                            </div>
 
-                                <p className="mt-1 text-sm font-medium tabular-nums">
-                                  {formatNumber(quantity, locale)}
-                                </p>
-                              </div>
+                            {/* Profit */}
+                            <div className="p-3.5">
+                              <p className="text-xs font-medium text-text-muted">
+                                {t("profit")}
+                              </p>
 
-                              <div>
-                                <p className="text-xs text-muted-foreground">
-                                  {t("total")}
-                                </p>
-
-                                <p className="mt-1 text-sm font-semibold tabular-nums">
-                                  {formatCurrency(order.total, locale)}
-                                </p>
-
-                                {order.deliveryCharged > 0 && (
-                                  <p className="text-xs text-muted-foreground tabular-nums">
-                                    {t("inclDelivery", {
-                                      amount: formatCurrency(
-                                        order.deliveryCharged,
-                                        locale,
-                                      ),
-                                    })}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div>
-                                <p className="text-xs text-muted-foreground">
-                                  {t("profit")}
-                                </p>
-
-                                <p className="mt-1 text-sm">
-                                  <ProfitText order={order} locale={locale} />
-                                </p>
-                              </div>
+                              <p className="mt-2 text-sm">
+                                <ProfitText order={order} locale={locale} />
+                              </p>
                             </div>
                           </div>
                         </div>
