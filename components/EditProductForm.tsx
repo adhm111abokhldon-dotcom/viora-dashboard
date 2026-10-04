@@ -2,9 +2,9 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Package, Save } from "lucide-react";
+import { ArrowLeft, ImagePlus, Package, Save, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 
 import { Product, updateProduct } from "@/lib/api";
+import { uploadProductImage } from "@/lib/cloudinary";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { isKnownCategory } from "@/lib/categories";
@@ -55,6 +56,11 @@ export default function EditProductForm({ product }: EditProductFormProps) {
   const [cost, setCost] = useState(String(product.cost));
   const [stock, setStock] = useState(String(product.stock));
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    product.imageUrl ?? null,
+  );
+
   const [errors, setErrors] = useState<FormErrors>({});
 
   const sellingPrice = Number(price) || 0;
@@ -70,22 +76,71 @@ export default function EditProductForm({ product }: EditProductFormProps) {
     return (margin / sellingPrice) * 100;
   }, [margin, sellingPrice]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
   const updateProductMutation = useMutation({
-    mutationFn: (data: {
-      name: string;
-      category: string;
-      price: number;
-      cost: number;
-      stock: number;
-    }) => updateProduct(product._id, data),
+    mutationFn: async () => {
+      let imageUrl = product.imageUrl;
+
+      if (imageFile) {
+        imageUrl = await uploadProductImage(imageFile);
+      }
+
+      return updateProduct(product._id, {
+        name: name.trim(),
+        category,
+        price: sellingPrice,
+        cost: productCost,
+        stock: Number(stock),
+        imageUrl,
+      });
+    },
 
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["products"],
       });
+
+      queryClient.invalidateQueries({
+        queryKey: ["product", product._id],
+      });
+
       router.push("/products");
     },
   });
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      event.target.value = "";
+      return;
+    }
+
+    if (imagePreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  function removeImage() {
+    if (imagePreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImageFile(null);
+    setImagePreview(null);
+  }
 
   function validate() {
     const newErrors: FormErrors = {};
@@ -128,13 +183,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
 
     if (!validate()) return;
 
-    updateProductMutation.mutate({
-      name: name.trim(),
-      category,
-      price: sellingPrice,
-      cost: productCost,
-      stock: Number(stock),
-    });
+    updateProductMutation.mutate();
   }
 
   return (
@@ -249,6 +298,54 @@ export default function EditProductForm({ product }: EditProductFormProps) {
 
               {errors.category && (
                 <p className="text-xs text-destructive">{errors.category}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product-image">Product Image</Label>
+
+              {imagePreview ? (
+                <div className="relative h-32 w-32 overflow-hidden rounded-lg border bg-muted">
+                  <img
+                    src={imagePreview}
+                    alt={name || "Product preview"}
+                    className="h-full w-full object-cover"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute end-1 top-1 flex size-7 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background"
+                    aria-label="Remove image"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="product-image"
+                  className="flex h-32 w-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/50"
+                >
+                  <ImagePlus className="size-6" />
+                  <span className="text-xs">Upload image</span>
+                </label>
+              )}
+
+              <input
+                id="product-image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="sr-only"
+              />
+
+              {imagePreview && (
+                <label
+                  htmlFor="product-image"
+                  className="block w-fit cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Change image
+                </label>
               )}
             </div>
           </CardContent>
@@ -425,9 +522,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
             className="w-full sm:w-auto"
           >
             <Save className="size-4" />
-            {updateProductMutation.isPending
-              ? tc("saving")
-              : t("saveChanges")}
+            {updateProductMutation.isPending ? tc("saving") : t("saveChanges")}
           </Button>
         </div>
       </form>

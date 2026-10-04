@@ -1,7 +1,14 @@
 "use client";
 
 import { motion } from "motion/react";
-import { AlertTriangle, Boxes, Package, Plus, Search } from "lucide-react";
+import {
+  AlertTriangle,
+  Boxes,
+  ImageIcon,
+  Package,
+  Plus,
+  Search,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
@@ -27,6 +34,7 @@ import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import { isKnownCategory } from "@/lib/categories";
+import Image from "next/image";
 
 // نفس الرقم مستخدم بالباك إند لحساب "Low stock"
 const LOW_STOCK_THRESHOLD = 10;
@@ -60,6 +68,43 @@ function getMargin(product: Product) {
   const percentage = product.price > 0 ? (margin / product.price) * 100 : 0;
 
   return { margin, percentage };
+}
+
+function ProductThumbnail({
+  product,
+  size = "default",
+}: {
+  product: Product;
+  size?: "default" | "mobile";
+}) {
+  const sizeClass =
+    size === "mobile" ? "size-11 rounded-lg" : "size-11 rounded-lg";
+
+  if (product.imageUrl) {
+    return (
+      <div
+        className={`shrink-0 rounded-lg overflow-hidden border bg-muted ${sizeClass}`}
+      >
+        <Image
+          src={product.imageUrl}
+          alt={product.name}
+          loading="lazy"
+          width={44}
+          height={44}
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center border bg-muted/40 text-muted-foreground ${sizeClass}`}
+      aria-hidden="true"
+    >
+      <ImageIcon className="size-4" />
+    </div>
+  );
 }
 
 export default function ProductsPage() {
@@ -97,14 +142,7 @@ export default function ProductsPage() {
 
   const limit = 10;
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    isFetching,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ["products", page, limit, search],
     queryFn: () => getProducts(page, limit, search),
     // بيضل يعرض النتايج القديمة لحد ما تجي الجديدة،
@@ -182,7 +220,7 @@ export default function ProductsPage() {
         </p>
       )}
 
-      {/* Product Summary (محسوبة على كل المنتجات، مش بس الصفحة الحالية) */}
+      {/* Product Summary */}
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label={t("totalProducts")}
@@ -279,10 +317,9 @@ export default function ProductsPage() {
                         key={product._id}
                         className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_48px] items-center border-b px-6 py-4 last:border-b-0"
                       >
+                        {/* Product */}
                         <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40">
-                            <Package className="size-4 text-muted-foreground" />
-                          </div>
+                          <ProductThumbnail product={product} />
 
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">
@@ -295,14 +332,17 @@ export default function ProductsPage() {
                           </div>
                         </div>
 
+                        {/* Price */}
                         <span className="text-sm font-medium tabular-nums">
                           {formatCurrency(product.price, locale)}
                         </span>
 
+                        {/* Cost */}
                         <span className="text-sm text-muted-foreground tabular-nums">
                           {formatCurrency(product.cost, locale)}
                         </span>
 
+                        {/* Margin */}
                         <div>
                           <p className="text-sm font-medium tabular-nums">
                             {formatCurrency(margin, locale)}
@@ -313,6 +353,7 @@ export default function ProductsPage() {
                           </p>
                         </div>
 
+                        {/* Stock */}
                         <div>
                           <p className="text-sm font-medium tabular-nums">
                             {formatNumber(product.stock, locale)}
@@ -351,9 +392,7 @@ export default function ProductsPage() {
                       <div key={product._id} className="space-y-4 p-5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40">
-                              <Package className="size-4 text-muted-foreground" />
-                            </div>
+                            <ProductThumbnail product={product} size="mobile" />
 
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium">

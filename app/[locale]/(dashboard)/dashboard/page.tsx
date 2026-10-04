@@ -1,10 +1,17 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { Clock3, DollarSign, ShoppingBag, TrendingUp } from "lucide-react";
+import {
+  Clock3,
+  DollarSign,
+  ImageIcon,
+  ShoppingBag,
+  TrendingUp,
+} from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -36,7 +43,7 @@ import { getDashboard, updateOrderStatus, type OrderStatus } from "@/lib/api";
 import { shortId, summarizeItems } from "@/lib/orders";
 import { orderStatusDot } from "@/lib/status";
 import { containerVariants, itemVariants } from "@/lib/motion";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import ErrorState from "@/components/ErrorState";
 import OrderActions from "@/components/OrderActions";
@@ -46,7 +53,7 @@ import StatusBadge from "@/components/StatusBadge";
 
 type Tone = "positive" | "negative" | "neutral";
 
-// لو أمس ما كان في مبيعات، النسبة ما إلها معنى (قبل كانت بتطلع +100% عشوائياً)
+// لو أمس ما كان في مبيعات، النسبة ما إلها معنى
 function comparePercent(today: number, yesterday: number) {
   if (yesterday === 0) {
     return { change: null, tone: "neutral" as Tone };
@@ -75,6 +82,37 @@ const toneStyles: Record<Tone, string> = {
   neutral: "text-muted-foreground",
 };
 
+function ProductThumbnail({
+  imageUrl,
+  productName,
+}: {
+  imageUrl?: string;
+  productName: string;
+}) {
+  if (imageUrl) {
+    return (
+      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
+        <Image
+          src={imageUrl}
+          alt={productName}
+          fill
+          sizes="40px"
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
+      aria-hidden="true"
+    >
+      <ImageIcon className="size-4" />
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
   const tStatus = useTranslations("status");
@@ -82,7 +120,6 @@ export default function DashboardPage() {
   const te = useTranslations("errors");
   const locale = useLocale() as "en" | "ar";
 
-  // API statuses stay English; this map only translates them for display.
   const statusLabel: Record<string, string> = {
     Pending: tStatus("pending"),
     Delivered: tStatus("delivered"),
@@ -100,6 +137,7 @@ export default function DashboardPage() {
     queryKey: ["dashboard"],
     queryFn: getDashboard,
   });
+
   const queryClient = useQueryClient();
 
   const updateOrderStatusMutation = useMutation({
@@ -167,8 +205,6 @@ export default function DashboardPage() {
 
   const { stats, salesData, orderStatus, recentOrders } = data;
 
-  // الأوردرات المعلّقة الكلية (مش بس اللي انعملت اليوم):
-  // أوردر معلّق من أمس لسا لازم يتسلّم، وهاد الرقم اللي بيهمك تشوفو
   const pendingTotal =
     orderStatus.find((item) => item.label === "Pending")?.value ?? 0;
 
@@ -185,9 +221,7 @@ export default function DashboardPage() {
       value: formatCurrency(stats.todaySales, locale),
       ...salesCompare,
       description:
-        salesCompare.change === null
-          ? t("noSalesYesterday")
-          : t("vsYesterday"),
+        salesCompare.change === null ? t("noSalesYesterday") : t("vsYesterday"),
       icon: DollarSign,
     },
     {
@@ -234,7 +268,6 @@ export default function DashboardPage() {
         <PageHeader title={t("title")} description={t("description")} />
       </motion.div>
 
-      {/* لو تغيير الحالة فشل (مثلاً مخزون ما كفى لإعادة أوردر ملغى) */}
       {updateOrderStatusMutation.isError && (
         <p className="text-sm text-destructive" role="alert">
           {apiErrorMessage(
@@ -416,7 +449,9 @@ export default function DashboardPage() {
                     {t("recentOrders")}
                   </CardTitle>
 
-                  <CardDescription>{t("recentOrdersDescription")}</CardDescription>
+                  <CardDescription>
+                    {t("recentOrdersDescription")}
+                  </CardDescription>
                 </div>
 
                 <Button
@@ -467,83 +502,137 @@ export default function DashboardPage() {
                       </TableHeader>
 
                       <TableBody>
-                        {recentOrders.map((order) => (
-                          <TableRow key={order._id}>
-                            <TableCell className="ps-6 font-medium tabular-nums">
-                              <span dir="ltr">#{shortId(order._id)}</span>
-                            </TableCell>
+                        {recentOrders.map((order) => {
+                          const firstItem = order.items[0];
+                          const additionalItems = Math.max(
+                            order.items.length - 1,
+                            0,
+                          );
 
-                            <TableCell>{order.customer}</TableCell>
+                          return (
+                            <TableRow key={order._id}>
+                              <TableCell className="ps-6 font-medium tabular-nums">
+                                <span dir="ltr">#{shortId(order._id)}</span>
+                              </TableCell>
 
-                            <TableCell className="max-w-40 truncate text-muted-foreground">
-                              {summarizeItems(order, tOrders).label}
-                            </TableCell>
+                              <TableCell>{order.customer}</TableCell>
 
-                            <TableCell className="font-medium tabular-nums">
-                              {formatCurrency(order.total, locale)}
-                            </TableCell>
+                              <TableCell>
+                                <div className="flex min-w-0 items-center gap-2">
+                                  {firstItem && (
+                                    <ProductThumbnail
+                                      imageUrl={firstItem.imageUrl}
+                                      productName={firstItem.name}
+                                    />
+                                  )}
 
-                            <TableCell>
-                              <StatusBadge status={order.status} />
-                            </TableCell>
+                                  <div className="flex min-w-0 items-center gap-1.5">
+                                    <span className="max-w-32 truncate">
+                                      {firstItem?.name ??
+                                        summarizeItems(order, tOrders).label}
+                                    </span>
 
-                            <TableCell className="pe-6">
-                              <OrderActions
-                                order={order}
-                                onStatusChange={handleStatusChange}
-                                isUpdatingStatus={
-                                  updateOrderStatusMutation.isPending
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                    {additionalItems > 0 && (
+                                      <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                        +{formatNumber(additionalItems, locale)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
+
+                              <TableCell className="font-medium tabular-nums">
+                                {formatCurrency(order.total, locale)}
+                              </TableCell>
+
+                              <TableCell>
+                                <StatusBadge status={order.status} />
+                              </TableCell>
+
+                              <TableCell className="pe-6">
+                                <OrderActions
+                                  order={order}
+                                  onStatusChange={handleStatusChange}
+                                  isUpdatingStatus={
+                                    updateOrderStatusMutation.isPending
+                                  }
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
 
                   {/* Mobile Cards */}
                   <div className="max-h-70 space-y-2 overflow-y-auto p-4 md:hidden">
-                    {recentOrders.map((order) => (
-                      <div
-                        key={order._id}
-                        className="rounded-lg border bg-card p-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium">
-                              {order.customer}{" "}
-                              <span
-                                dir="ltr"
-                                className="text-xs font-normal text-muted-foreground tabular-nums"
-                              >
-                                #{shortId(order._id)}
-                              </span>
-                            </p>
+                    {recentOrders.map((order) => {
+                      const firstItem = order.items[0];
+                      const additionalItems = Math.max(
+                        order.items.length - 1,
+                        0,
+                      );
 
-                            <p className="mt-1 truncate text-sm text-muted-foreground">
-                              {summarizeItems(order, tOrders).label}
-                            </p>
+                      return (
+                        <div
+                          key={order._id}
+                          className="rounded-lg border bg-card p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              {firstItem && (
+                                <ProductThumbnail
+                                  imageUrl={firstItem.imageUrl}
+                                  productName={firstItem.name}
+                                />
+                              )}
+
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium">
+                                  {order.customer}{" "}
+                                  <span
+                                    dir="ltr"
+                                    className="text-xs font-normal text-muted-foreground tabular-nums"
+                                  >
+                                    #{shortId(order._id)}
+                                  </span>
+                                </p>
+
+                                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                  <p className="truncate text-sm text-muted-foreground">
+                                    {firstItem?.name ??
+                                      summarizeItems(order, tOrders).label}
+                                  </p>
+
+                                  {additionalItems > 0 && (
+                                    <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                      +{formatNumber(additionalItems, locale)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <OrderActions
+                              order={order}
+                              onStatusChange={handleStatusChange}
+                              isUpdatingStatus={
+                                updateOrderStatusMutation.isPending
+                              }
+                            />
                           </div>
 
-                          <OrderActions
-                            order={order}
-                            onStatusChange={handleStatusChange}
-                            isUpdatingStatus={
-                              updateOrderStatusMutation.isPending
-                            }
-                          />
-                        </div>
+                          <div className="mt-4 flex items-center justify-between gap-3">
+                            <span className="font-medium tabular-nums">
+                              {formatCurrency(order.total, locale)}
+                            </span>
 
-                        <div className="mt-4 flex items-center justify-between gap-3">
-                          <span className="font-medium tabular-nums">
-                            {formatCurrency(order.total, locale)}
-                          </span>
-
-                          <StatusBadge status={order.status} />
+                            <StatusBadge status={order.status} />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}

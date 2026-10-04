@@ -5,11 +5,13 @@ export type Product = {
   price: number;
   cost: number;
   stock: number;
+  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export type ProductsResponse = {
   products: Product[];
   pagination: {
@@ -54,6 +56,7 @@ export type CreateProductData = {
   price: number;
   cost: number;
   stock: number;
+  imageUrl?: string;
 };
 
 export async function createProduct(
@@ -73,6 +76,7 @@ export async function createProduct(
 
   return response.json();
 }
+
 export async function deleteProduct(productId: string): Promise<void> {
   const response = await fetch(`${API_URL}/products/${productId}`, {
     method: "DELETE",
@@ -82,6 +86,7 @@ export async function deleteProduct(productId: string): Promise<void> {
     throw new Error("Failed to delete product");
   }
 }
+
 export async function getProductById(productId: string): Promise<Product> {
   const response = await fetch(`${API_URL}/products/${productId}`);
 
@@ -121,6 +126,7 @@ export type OrderItem = {
   quantity: number;
   unitPrice: number; // السعر الفعلي بعد المكاسرة
   unitCost: number; // كلفة المنتج وقت الأوردر
+  imageUrl?: string; // موجود في response فقط، لا يتم تخزينه داخل Order
 };
 
 export type Order = {
@@ -219,13 +225,15 @@ export async function getOrderById(orderId: string): Promise<Order> {
   return response.json();
 }
 
-export async function createOrder(orderData: CreateOrderData): Promise<Order> {
+export async function createOrder(
+  createOrderData: CreateOrderData,
+): Promise<Order> {
   const response = await fetch(`${API_URL}/orders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(orderData),
+    body: JSON.stringify(createOrderData),
   });
 
   if (!response.ok) {

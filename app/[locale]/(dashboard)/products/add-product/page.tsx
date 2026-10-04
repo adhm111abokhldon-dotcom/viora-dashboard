@@ -2,9 +2,9 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Package, Save } from "lucide-react";
+import { ArrowLeft, ImagePlus, Package, Save, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createProduct } from "@/lib/api";
+import { uploadProductImage } from "@/lib/cloudinary";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { isKnownCategory } from "@/lib/categories";
@@ -44,28 +45,52 @@ export default function AddProductPage() {
 
   const queryClient = useQueryClient();
   const router = useRouter();
-  const createProductMutation = useMutation({
-    mutationFn: createProduct,
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
-      setName("");
-      setCategory("");
-      setPrice("");
-      setCost("");
-      setStock("");
-      router.push("/products");
-    },
-  });
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
   const [stock, setStock] = useState("");
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
   const [errors, setErrors] = useState<FormErrors>({});
+
+  const createProductMutation = useMutation({
+    mutationFn: async () => {
+      let imageUrl: string | undefined;
+
+      if (imageFile) {
+        imageUrl = await uploadProductImage(imageFile);
+      }
+
+      return createProduct({
+        name: name.trim(),
+        category,
+        price: sellingPrice,
+        cost: productCost,
+        stock: Number(stock),
+        imageUrl,
+      });
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+
+      setName("");
+      setCategory("");
+      setPrice("");
+      setCost("");
+      setStock("");
+      setImageFile(null);
+      setImagePreview(null);
+
+      router.push("/products");
+    },
+  });
 
   const sellingPrice = Number(price) || 0;
   const productCost = Number(cost) || 0;
@@ -80,7 +105,43 @@ export default function AddProductPage() {
     return (margin / sellingPrice) * 100;
   }, [margin, sellingPrice]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      event.target.value = "";
+      return;
+    }
+
+    if (imagePreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  function removeImage() {
+    if (imagePreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImageFile(null);
+    setImagePreview(null);
+  }
+
   if (createProductMutation.isPending) return <AddProductLoading />;
+
   function validate() {
     const newErrors: FormErrors = {};
 
@@ -122,15 +183,7 @@ export default function AddProductPage() {
 
     if (!validate()) return;
 
-    const productData = {
-      name: name.trim(),
-      category,
-      price: sellingPrice,
-      cost: productCost,
-      stock: Number(stock),
-    };
-
-    createProductMutation.mutate(productData);
+    createProductMutation.mutate();
   }
 
   return (
@@ -250,6 +303,55 @@ export default function AddProductPage() {
 
               {errors.category && (
                 <p className="text-xs text-destructive">{errors.category}</p>
+              )}
+            </div>
+
+            {/* Product Image */}
+            <div className="space-y-2">
+              <Label htmlFor="product-image">Product Image</Label>
+
+              {imagePreview ? (
+                <div className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+                  <img
+                    src={imagePreview}
+                    alt={name || "Product preview"}
+                    className="h-full w-full object-cover"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute end-1 top-1 flex size-7 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background"
+                    aria-label="Remove image"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="product-image"
+                  className="flex h-32 w-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/50"
+                >
+                  <ImagePlus className="size-6" />
+                  <span className="text-xs">Upload image</span>
+                </label>
+              )}
+
+              <input
+                id="product-image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="sr-only"
+              />
+
+              {imagePreview && (
+                <label
+                  htmlFor="product-image"
+                  className="block w-fit cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Change image
+                </label>
               )}
             </div>
           </CardContent>
@@ -406,7 +508,11 @@ export default function AddProductPage() {
 
         {createProductMutation.isError && (
           <p className="text-sm text-destructive" role="alert">
-            {apiErrorMessage(createProductMutation.error, te, te("createProduct"))}
+            {apiErrorMessage(
+              createProductMutation.error,
+              te,
+              te("createProduct"),
+            )}
           </p>
         )}
 
@@ -428,9 +534,7 @@ export default function AddProductPage() {
             disabled={createProductMutation.isPending}
           >
             <Save className="size-4" />
-            {createProductMutation.isPending
-              ? tc("saving")
-              : t("saveProduct")}
+            {createProductMutation.isPending ? tc("saving") : t("saveProduct")}
           </Button>
         </div>
       </form>

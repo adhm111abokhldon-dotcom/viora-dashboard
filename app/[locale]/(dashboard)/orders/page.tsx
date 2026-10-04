@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import {
   Clock3,
   DollarSign,
+  ImageIcon,
   Package,
   Plus,
   Search,
@@ -54,11 +56,7 @@ import StatCard from "@/components/StatCard";
 import PageHeader from "@/components/PageHeader";
 import ErrorState from "@/components/ErrorState";
 import { containerVariants, itemVariants } from "@/lib/motion";
-import {
-  formatCurrency,
-  formatDate,
-  formatNumber,
-} from "@/lib/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 
 // الربح: أخضر لو موجب، أحمر لو خسارة، وشرطة للملغى (ما بينحسب بالإيراد)
@@ -80,6 +78,37 @@ function ProfitText({ order, locale }: { order: Order; locale: "en" | "ar" }) {
       {isLoss ? "-" : "+"}
       {formatCurrency(Math.abs(order.profit), locale)}
     </span>
+  );
+}
+
+function ProductThumbnail({
+  imageUrl,
+  productName,
+}: {
+  imageUrl?: string;
+  productName: string;
+}) {
+  if (imageUrl) {
+    return (
+      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
+        <Image
+          src={imageUrl}
+          alt={productName}
+          fill
+          sizes="40px"
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
+      aria-hidden="true"
+    >
+      <ImageIcon className="size-4" />
+    </div>
   );
 }
 
@@ -114,14 +143,7 @@ export default function OrdersPage() {
 
   const limit = 10;
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    isFetching,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ["orders", page, limit, search, statusFilter],
     queryFn: () => getOrders(page, limit, { search, status: statusFilter }),
     placeholderData: keepPreviousData,
@@ -260,7 +282,7 @@ export default function OrdersPage() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1 sm:max-w-sm">
-                <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
                 <Input
                   value={searchInput}
@@ -291,9 +313,7 @@ export default function OrdersPage() {
 
                 <SelectContent>
                   <SelectItem value="all">{tStatus("all")}</SelectItem>
-                  <SelectItem value="Pending">
-                    {tStatus("pending")}
-                  </SelectItem>
+                  <SelectItem value="Pending">{tStatus("pending")}</SelectItem>
                   <SelectItem value="Delivered">
                     {tStatus("delivered")}
                   </SelectItem>
@@ -357,13 +377,17 @@ export default function OrdersPage() {
                         {orders.map((order) => {
                           const { label, quantity } = summarizeItems(order, t);
 
+                          const firstItem = order.items[0];
+                          const additionalItems = Math.max(
+                            order.items.length - 1,
+                            0,
+                          );
+
                           return (
                             <TableRow key={order._id}>
                               <TableCell>
                                 <p className="font-medium tabular-nums">
-                                  <span dir="ltr">
-                                    #{shortId(order._id)}
-                                  </span>
+                                  <span dir="ltr">#{shortId(order._id)}</span>
                                 </p>
 
                                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -391,13 +415,41 @@ export default function OrdersPage() {
                               </TableCell>
 
                               <TableCell>
-                                <p>{label}</p>
+                                <div className="flex min-w-0 items-center gap-2">
+                                  {firstItem && (
+                                    <ProductThumbnail
+                                      imageUrl={firstItem.imageUrl}
+                                      productName={firstItem.name}
+                                    />
+                                  )}
 
-                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                  {t("quantityShort", {
-                                    quantity: formatNumber(quantity, locale),
-                                  })}
-                                </p>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="max-w-44 truncate">
+                                        {label}
+                                      </p>
+
+                                      {additionalItems > 0 && (
+                                        <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                          +
+                                          {formatNumber(
+                                            additionalItems,
+                                            locale,
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      {t("quantityShort", {
+                                        quantity: formatNumber(
+                                          quantity,
+                                          locale,
+                                        ),
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
                               </TableCell>
 
                               <TableCell>
@@ -448,6 +500,12 @@ export default function OrdersPage() {
                     {orders.map((order) => {
                       const { label, quantity } = summarizeItems(order, t);
 
+                      const firstItem = order.items[0];
+                      const additionalItems = Math.max(
+                        order.items.length - 1,
+                        0,
+                      );
+
                       return (
                         <div key={order._id} className="space-y-4 p-4">
                           {/* Order Header */}
@@ -455,9 +513,7 @@ export default function OrdersPage() {
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-semibold tabular-nums">
-                                  <span dir="ltr">
-                                    #{shortId(order._id)}
-                                  </span>
+                                  <span dir="ltr">#{shortId(order._id)}</span>
                                 </p>
 
                                 <StatusBadge status={order.status} />
@@ -505,9 +561,32 @@ export default function OrdersPage() {
                                   {t("items")}
                                 </p>
 
-                                <p className="mt-1 truncate text-sm font-medium">
-                                  {label}
-                                </p>
+                                <div className="mt-1 flex min-w-0 items-center gap-2">
+                                  {firstItem && (
+                                    <ProductThumbnail
+                                      imageUrl={firstItem.imageUrl}
+                                      productName={firstItem.name}
+                                    />
+                                  )}
+
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="truncate text-sm font-medium">
+                                        {label}
+                                      </p>
+
+                                      {additionalItems > 0 && (
+                                        <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                          +
+                                          {formatNumber(
+                                            additionalItems,
+                                            locale,
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
 
                               <div>

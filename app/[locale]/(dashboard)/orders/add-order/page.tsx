@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Calculator,
   ClipboardList,
+  ImageIcon,
   Plus,
   Save,
   Trash2,
@@ -31,11 +32,12 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { createOrder, getProducts } from "@/lib/api";
+import { createOrder, getProducts, Product } from "@/lib/api";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import AddProductLoading from "@/components/AddProductLoading";
+import Image from "next/image";
 
 type FormErrors = {
   customer?: string;
@@ -50,6 +52,40 @@ type Row = {
   quantity: string;
   unitPrice: string;
 };
+
+function ProductThumbnail({
+  product,
+  size = "sm",
+}: {
+  product: Product;
+  size?: "sm" | "md";
+}) {
+  const sizeClass = size === "md" ? "size-12" : "size-9";
+  const iconClass = size === "md" ? "size-5" : "size-4";
+
+  if (product.imageUrl) {
+    return (
+      <div
+        className={`shrink-0 overflow-hidden rounded-md border bg-muted ${sizeClass}`}
+      >
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-md border bg-muted/50 text-muted-foreground ${sizeClass}`}
+      aria-hidden="true"
+    >
+      <ImageIcon className={iconClass} />
+    </div>
+  );
+}
 
 export default function NewOrderPage() {
   const t = useTranslations("orderForm");
@@ -185,8 +221,6 @@ export default function NewOrderPage() {
   function handleProductChange(id: number, value: string) {
     const product = products.find((product) => product._id === value);
 
-    // السعر الافتراضي للمنتج،
-    // وبعدها المستخدم حر يعدله للمكاسرة.
     updateRow(id, {
       productId: value,
       unitPrice: product ? String(product.price) : "",
@@ -361,7 +395,9 @@ export default function NewOrderPage() {
             <FieldGroup>
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field>
-                  <FieldLabel htmlFor="customer">{t("customerName")}</FieldLabel>
+                  <FieldLabel htmlFor="customer">
+                    {t("customerName")}
+                  </FieldLabel>
 
                   <Input
                     id="customer"
@@ -415,8 +451,8 @@ export default function NewOrderPage() {
 
           <CardContent className="space-y-4">
             {lines.map(({ row, product }, index) => (
-              <div key={row.id} className="rounded-lg border p-4">
-                <div className="mb-3 flex items-center justify-between">
+              <div key={row.id} className="rounded-xl border p-4">
+                <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-medium">
                     {t("productNumber", { number: index + 1 })}
                   </span>
@@ -435,54 +471,84 @@ export default function NewOrderPage() {
                 </div>
 
                 <FieldGroup>
-                  <div className="grid gap-5 sm:grid-cols-3">
-                    <Field className="sm:col-span-3">
-                      <FieldLabel htmlFor={`product-${row.id}`}>
-                        {t("product")}
-                      </FieldLabel>
+                  <Field className="max-w-1/2">
+                    <FieldLabel htmlFor={`product-${row.id}`}>
+                      {t("product")}
+                    </FieldLabel>
 
-                      <Select
-                        value={row.productId}
-                        onValueChange={(value) =>
-                          handleProductChange(row.id, value ?? "")
-                        }
+                    <Select
+                      value={row.productId}
+                      onValueChange={(value) =>
+                        handleProductChange(row.id, value ?? "")
+                      }
+                    >
+                      <SelectTrigger
+                        id={`product-${row.id}`}
+                        className="h-auto min-h-10 w-full py-2"
+                        aria-invalid={!!rowErrors[row.id]}
                       >
-                        <SelectTrigger
-                          id={`product-${row.id}`}
-                          aria-invalid={!!rowErrors[row.id]}
-                        >
-                          <SelectValue placeholder={t("selectProduct")}>
-                            {product
-                              ? `${product.name} — ${formatCurrency(
-                                  product.price,
-                                  locale,
-                                )}`
-                              : undefined}
-                          </SelectValue>
-                        </SelectTrigger>
+                        {product ? (
+                          <div className="flex w-fit min-w-0 items-center gap-3">
+                            <ProductThumbnail product={product} size="sm" />
 
-                        <SelectContent>
-                          {products.map((item) => (
-                            <SelectItem
-                              key={item._id}
-                              value={item._id}
-                              disabled={item.stock === 0}
-                            >
-                              {item.name} — {formatCurrency(item.price, locale)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            <div className="min-w-0 text-start">
+                              <p className="truncate text-sm font-medium">
+                                {product.name}
+                              </p>
 
-                      {product && (
-                        <FieldDescription>
-                          {t("availableStock", {
-                            count: formatNumber(product.stock, locale),
-                          })}
-                        </FieldDescription>
-                      )}
-                    </Field>
+                              <p className="text-xs text-muted-foreground">
+                                {formatCurrency(product.price, locale)}
+                                {" · "}
+                                {formatNumber(product.stock, locale)} available
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <SelectValue placeholder={t("selectProduct")} />
+                        )}
+                      </SelectTrigger>
 
+                      <SelectContent>
+                        {products.map((item) => (
+                          <SelectItem
+                            key={item._id}
+                            value={item._id}
+                            disabled={item.stock === 0}
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <ProductThumbnail product={item} size="sm" />
+
+                              <div className="min-w-0">
+                                <p className="truncate text-sm">{item.name}</p>
+
+                                <p className="text-xs text-muted-foreground">
+                                  {formatCurrency(item.price, locale)}
+                                  {" · "}
+                                  {formatNumber(item.stock, locale)} available
+                                </p>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {product && (
+                      <FieldDescription>
+                        {t("availableStock", {
+                          count: formatNumber(product.stock, locale),
+                        })}
+                      </FieldDescription>
+                    )}
+
+                    {rowErrors[row.id] && (
+                      <p className="text-sm text-destructive">
+                        {rowErrors[row.id]}
+                      </p>
+                    )}
+                  </Field>
+
+                  <div className="grid gap-5 sm:grid-cols-3">
                     <Field>
                       <FieldLabel htmlFor={`quantity-${row.id}`}>
                         {t("quantity")}
@@ -523,12 +589,6 @@ export default function NewOrderPage() {
                       />
                     </Field>
                   </div>
-
-                  {rowErrors[row.id] && (
-                    <p className="text-sm text-destructive">
-                      {rowErrors[row.id]}
-                    </p>
-                  )}
                 </FieldGroup>
               </div>
             ))}
@@ -586,7 +646,9 @@ export default function NewOrderPage() {
                       {errors.deliveryCharged}
                     </p>
                   ) : (
-                    <FieldDescription>{t("deliveryChargedHint")}</FieldDescription>
+                    <FieldDescription>
+                      {t("deliveryChargedHint")}
+                    </FieldDescription>
                   )}
                 </Field>
 
@@ -648,15 +710,19 @@ export default function NewOrderPage() {
                     key={line.row.id}
                     className="flex items-center justify-between gap-4"
                   >
-                    <span className="text-sm text-muted-foreground">
-                      {line.product?.name} × {formatNumber(line.quantity, locale)}
-                    </span>
-
-                    <span className="text-sm font-medium tabular-nums">
-                      {formatCurrency(
-                        line.quantity * line.unitPrice,
-                        locale,
+                    <div className="flex min-w-0 items-center gap-2">
+                      {line.product && (
+                        <ProductThumbnail product={line.product} size="sm" />
                       )}
+
+                      <span className="truncate text-sm text-muted-foreground">
+                        {line.product?.name} ×{" "}
+                        {formatNumber(line.quantity, locale)}
+                      </span>
+                    </div>
+
+                    <span className="shrink-0 text-sm font-medium tabular-nums">
+                      {formatCurrency(line.quantity * line.unitPrice, locale)}
                     </span>
                   </div>
                 ))
