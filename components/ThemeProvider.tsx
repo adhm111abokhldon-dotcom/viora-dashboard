@@ -9,12 +9,19 @@ export function ThemeProvider({
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="shadcn-dark"
+      defaultTheme="dark"
       enableSystem={false}
       themes={[
         "light",
         "dark",
-        "viora,one-dark,dracula,tokyo-night,catppuccin,nord,shadcn-dark,shadcn-light",
+        "shadcn-dark",
+        "shadcn-light",
+        "viora",
+        "one-dark",
+        "dracula",
+        "tokyo-night",
+        "catppuccin",
+        "nord",
       ]}
       disableTransitionOnChange
     >
