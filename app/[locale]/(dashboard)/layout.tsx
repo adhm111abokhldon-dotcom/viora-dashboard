@@ -19,18 +19,6 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import AuthGuard from "@/components/AuthGuard";
 import { Link, usePathname } from "@/i18n/navigation";
 
-const pageKeys: Record<string, string> = {
-  "/dashboard": "overview",
-
-  "/products": "products",
-  "/products/add-product": "addProduct",
-
-  "/orders": "orders",
-  "/orders/add-order": "addOrder",
-
-  "/reports": "reports",
-};
-
 function getBreadcrumbs(pathname: string, t: (key: string) => string) {
   if (pathname === "/dashboard") {
     return [
@@ -83,6 +71,28 @@ function getBreadcrumbs(pathname: string, t: (key: string) => string) {
         key: "products",
         label: t("products"),
         href: "/products",
+      },
+      {
+        key: "product-detail",
+        label: t("productDetail"),
+        href: "",
+      },
+    );
+
+    return breadcrumbs;
+  }
+
+  if (/^\/products\/[^/]+\/edit$/.test(pathname)) {
+    breadcrumbs.push(
+      {
+        key: "products",
+        label: t("products"),
+        href: "/products",
+      },
+      {
+        key: "product-detail",
+        label: t("productDetail"),
+        href: "",
       },
       {
         key: "edit-product",
@@ -151,6 +161,16 @@ function getBreadcrumbs(pathname: string, t: (key: string) => string) {
         href: "",
       },
     );
+
+    return breadcrumbs;
+  }
+
+  if (pathname === "/advertising") {
+    breadcrumbs.push({
+      key: "advertising",
+      label: t("advertising"),
+      href: "",
+    });
 
     return breadcrumbs;
   }

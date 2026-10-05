@@ -8,6 +8,30 @@ export type Product = {
   imageUrl?: string;
   createdAt: string;
   updatedAt: string;
+
+  /**
+   * Business performance over Delivered orders only, computed on the backend.
+   * Pending and Cancelled orders are never counted here.
+   */
+  performance?: ProductPerformance;
+};
+
+/** Product-level business metrics (the backend owns the calculation). */
+export type ProductPerformance = {
+  unitsSold: number;
+  /** Distinct delivered orders containing this product. */
+  orders: number;
+  /** sum(quantity * unitPrice) over delivered orders. Excludes delivery. */
+  sales: number;
+  /** sum(quantity * unitCost) over delivered orders. */
+  cost: number;
+  /** This product's allocated share of delivery cost. */
+  deliveryCost: number;
+  /** sales - cost - deliveryCost */
+  profit: number;
+  averageSellingPrice: number;
+  profitMargin: number;
+  realisedMargin: number;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -114,6 +138,220 @@ export async function updateProduct(
   }
 
   return response.json();
+}
+
+// Product detail
+
+/** A delivered order line for one product, as shown on the detail page. */
+export type ProductRecentOrder = {
+  _id: string;
+  customer: string;
+  createdAt: string;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  unitCost: number;
+  orderTotal: number;
+  orderDeliveryCost: number;
+};
+
+export type ProductStatsResponse = {
+  product: {
+    _id: string;
+    name: string;
+    category: string;
+    imageUrl?: string;
+    price: number;
+    cost: number;
+    stock: number;
+  };
+
+  performance: {
+    unitsSold: number;
+    orders: number;
+    /** Product revenue. deliveryCharged is NOT included. */
+    sales: number;
+    /** Capital consumed by the units actually sold. */
+    cost: number;
+    /** This product's allocated share of delivery cost. */
+    deliveryCost: number;
+    /** sales - cost - deliveryCost */
+    profit: number;
+    profitMargin: number;
+    averageSellingPrice: number;
+    averageCost: number;
+    deliveryCostPerUnit: number;
+    /** Shown for transparency; never part of product sales. */
+    deliveryCollected: number;
+  };
+
+  pricing: {
+    defaultPrice: number;
+    defaultCost: number;
+    averageSellingPrice: number;
+    /** averageSellingPrice - defaultPrice (negative = sold below list). */
+    difference: number;
+    differencePercent: number;
+    soldBelowDefault: boolean;
+  };
+
+  inventory: {
+    currentStock: number;
+    lowStockThreshold: number;
+    outOfStock: boolean;
+    lowStock: boolean;
+    /** Stock divided by the recent average daily sales rate, or null. */
+    daysOfStockLeft: number | null;
+  };
+
+  /** Operational only - never counted as completed sales. */
+  pending: {
+    orders: number;
+    units: number;
+  };
+
+  trendDays: number;
+  salesTrend: Array<{ date: string; units: number; sales: number }>;
+  recentOrders: ProductRecentOrder[];
+
+  /** Verifiable facts only - no invented recommendations. */
+  attention: {
+    outOfStock: boolean;
+    lowStock: boolean;
+    neverSold: boolean;
+    soldBelowDefaultPrice: boolean;
+    profitNegative: boolean;
+    otherProductsNeedingRestock: Array<{
+      _id: string;
+      name: string;
+      stock: number;
+    }>;
+  };
+};
+
+export async function getProductStats(
+  productId: string,
+  days?: 7 | 30 | 90,
+): Promise<ProductStatsResponse> {
+  const params = days ? `?days=${days}` : "";
+  const response = await fetch(`${API_URL}/products/${productId}/stats${params}`);
+
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, "Failed to fetch product"));
+  }
+
+  return response.json();
+}
+
+// Advertising expenses
+
+export type AdvertisingExpense = {
+  _id: string;
+  date: string;
+  amount: number;
+  platform: string;
+  campaign?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateAdvertisingExpenseData = {
+  date: string;
+  amount: number;
+  platform: string;
+  campaign?: string;
+  note?: string;
+};
+
+export type AdvertisingResponse = {
+  expenses: AdvertisingExpense[];
+  pagination: {
+    currentPage: number;
+    limit: number;
+    totalExpenses: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+  summary: {
+    totalSpend: number;
+    expenseCount: number;
+    averageExpense: number;
+    byPlatform: Array<{ platform: string; total: number; count: number }>;
+  };
+};
+
+export async function getAdvertisingExpenses(params: {
+  page: number;
+  limit: number;
+  from?: string;
+  to?: string;
+  platform?: string;
+}): Promise<AdvertisingResponse> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  });
+
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.platform) query.set("platform", params.platform);
+
+  const response = await fetch(`${API_URL}/advertising?${query}`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch advertising expenses");
+  }
+
+  return response.json();
+}
+
+export async function createAdvertisingExpense(
+  data: CreateAdvertisingExpenseData,
+): Promise<AdvertisingExpense> {
+  const response = await fetch(`${API_URL}/advertising`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await errorMessage(response, "Failed to create advertising expense"),
+    );
+  }
+
+  return response.json();
+}
+
+export async function updateAdvertisingExpense(
+  expenseId: string,
+  data: CreateAdvertisingExpenseData,
+): Promise<AdvertisingExpense> {
+  const response = await fetch(`${API_URL}/advertising/${expenseId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await errorMessage(response, "Failed to update advertising expense"),
+    );
+  }
+
+  return response.json();
+}
+
+export async function deleteAdvertisingExpense(expenseId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/advertising/${expenseId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete advertising expense");
+  }
 }
 
 // Orders
@@ -318,18 +556,43 @@ export type ReportsResponse = {
   range: number;
 
   summary: {
-    totalSales: number;
-    totalProfit: number;
-    totalOrders: number;
-    activeOrders: number;
+    /** Delivered orders only. Excludes deliveryCharged. */
+    productSales: number;
+    productCost: number;
+    deliveryCost: number;
+    productProfit: number;
+    unitsSold: number;
+    /** Delivered orders inside the selected window. */
+    deliveredOrdersInRange: number;
     averageOrderValue: number;
+    profitMargin: number;
+    advertisingSpend: number;
+
+    /** Operational view: every order ever, regardless of window. */
+    totalOrders: number;
     pendingOrders: number;
     deliveredOrders: number;
     cancelledOrders: number;
-    deliveryRevenue: number;
-    deliveryCost: number;
-    profitMargin: number;
+
+    deliveryCollected: number;
+    deliveryNet: number;
     deliveryRate: number;
+  };
+
+  /**
+   * Where the money goes, over the selected window:
+   * productSales - productCost - deliveryCost - advertisingSpend
+   */
+  financials: {
+    productSales: number;
+    productCost: number;
+    deliveryCost: number;
+    productProfit: number;
+    deliveryCollected: number;
+    advertisingSpend: number;
+    advertisingCount: number;
+    netProfitAfterAds: number;
+    netMargin: number;
   };
 
   salesData: ReportSalesData[];

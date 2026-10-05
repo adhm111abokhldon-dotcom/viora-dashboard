@@ -6,6 +6,7 @@ import {
   Boxes,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   ShoppingCart,
 } from "lucide-react";
 
@@ -56,6 +57,11 @@ const navigation = [
     titleKey: "reports",
     url: "/reports",
     icon: BarChart3,
+  },
+  {
+    titleKey: "advertising",
+    url: "/advertising",
+    icon: Megaphone,
   },
 ];
 

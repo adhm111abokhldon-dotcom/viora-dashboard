@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Product } from "@/lib/api";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { BarChart3, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { DeleteProductDialog } from "./DeleteProductDialog";
@@ -56,6 +56,18 @@ export function ProductActions({
             render={
               <Link
                 href={`/products/${product._id}`}
+                className="flex w-40 items-center gap-1"
+              >
+                <BarChart3 className="size-4" />
+                {t("view")}
+              </Link>
+            }
+          />
+
+          <DropdownMenuItem
+            render={
+              <Link
+                href={`/products/${product._id}/edit`}
                 className="flex w-40 items-center gap-1"
               >
                 <Pencil className="size-4" />

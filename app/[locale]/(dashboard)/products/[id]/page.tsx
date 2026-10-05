@@ -1,468 +1,699 @@
 "use client";
 
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
   AlertTriangle,
-  Boxes,
+  ArrowLeft,
+  DollarSign,
   ImageIcon,
-  Package,
-  Plus,
-  Search,
+  Pencil,
+  ShoppingBag,
+  Truck,
 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
-import { useEffect, useState } from "react";
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-import { deleteProduct, getProducts, Product } from "@/lib/api";
-import { ProductActions } from "@/components/ProductActions";
-import { Pagination } from "@/components/ui/Pagination";
-import ProductsLoading from "@/components/ProductsLoading";
-import PageHeader from "@/components/PageHeader";
-import ErrorState from "@/components/ErrorState";
-import StatCard from "@/components/StatCard";
-import { containerVariants, itemVariants } from "@/lib/motion";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import { apiErrorMessage } from "@/lib/errors";
-import { isKnownCategory } from "@/lib/categories";
 import Image from "next/image";
 
-// نفس الرقم مستخدم بالباك إند لحساب "Low stock"
-const LOW_STOCK_THRESHOLD = 10;
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ErrorState from "@/components/ErrorState";
+import EmptyState from "@/components/EmptyState";
+import ProductsLoading from "@/components/ProductsLoading";
+import { getProductStats, type ProductStatsResponse } from "@/lib/api";
+import { containerVariants, itemVariants } from "@/lib/motion";
+import {
+  formatCurrency,
+  formatDate,
+  formatNumber,
+  formatPercent,
+} from "@/lib/format";
+import { apiErrorMessage } from "@/lib/errors";
+import { isKnownCategory } from "@/lib/categories";
+import { cn } from "@/lib/utils";
 
-function getStockStatus(stock: number, t: (key: string) => string) {
-  if (stock === 0) {
-    return {
-      label: t("outOfStock"),
-      className: "text-destructive",
-      dotClassName: "bg-destructive",
-    };
-  }
+const TREND_OPTIONS = [7, 30, 90] as const;
+type TrendDays = (typeof TREND_OPTIONS)[number];
 
-  if (stock <= LOW_STOCK_THRESHOLD) {
-    return {
-      label: t("lowStock"),
-      className: "text-warning",
-      dotClassName: "bg-warning",
-    };
-  }
+/**
+ * The detail payload always includes performance, but keeping a typed default
+ * means the page renders safely instead of crashing on an unexpected shape.
+ */
+const NO_PERFORMANCE: ProductStatsResponse["performance"] = {
+  unitsSold: 0,
+  orders: 0,
+  sales: 0,
+  cost: 0,
+  deliveryCost: 0,
+  profit: 0,
+  profitMargin: 0,
+  averageSellingPrice: 0,
+  averageCost: 0,
+  deliveryCostPerUnit: 0,
+  deliveryCollected: 0,
+};
 
-  return {
-    label: t("inStock"),
-    className: "text-success",
-    dotClassName: "bg-success",
-  };
-}
-
-function getMargin(product: Product) {
-  const margin = product.price - product.cost;
-  const percentage = product.price > 0 ? (margin / product.price) * 100 : 0;
-
-  return { margin, percentage };
-}
-
-function ProductThumbnail({
-  product,
-  size = "default",
+/** One labelled money/number figure in a detail grid. */
+function Metric({
+  label,
+  value,
+  hint,
+  tone = "default",
 }: {
-  product: Product;
-  size?: "default" | "mobile";
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "default" | "success" | "destructive";
 }) {
-  const sizeClass =
-    size === "mobile" ? "size-11 rounded-lg" : "size-11 rounded-lg";
-
-  if (product.imageUrl) {
-    return (
-      <div
-        className={`shrink-0 overflow-hidden rounded-lg border bg-muted ${sizeClass}`}
-      >
-        <Image
-          src={product.imageUrl}
-          alt={product.name}
-          loading="lazy"
-          width={44}
-          height={44}
-          className="object-cover"
-        />
-      </div>
-    );
-  }
-
   return (
-    <div
-      className={`flex shrink-0 items-center justify-center border bg-muted/40 text-muted-foreground ${sizeClass}`}
-      aria-hidden="true"
-    >
-      <ImageIcon className="size-4" />
+    <div className="px-4 py-3.5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+
+      <p
+        className={cn(
+          "mt-1 text-base font-semibold tabular-nums",
+          tone === "success" && "text-success",
+          tone === "destructive" && "text-destructive",
+        )}
+      >
+        {value}
+      </p>
+
+      {hint ? (
+        <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
 
-export default function ProductsPage() {
-  const t = useTranslations("products");
+/** A row in the "where the money goes" breakdown. */
+function MoneyLine({
+  label,
+  value,
+  locale,
+  kind,
+}: {
+  label: string;
+  value: number;
+  locale: "en" | "ar";
+  kind: "plus" | "minus" | "total";
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-4 py-2.5",
+        kind === "total" && "border-t border-border pt-3",
+      )}
+    >
+      <span
+        className={cn(
+          "text-sm",
+          kind === "total" ? "font-semibold" : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </span>
+
+      <span
+        className={cn(
+          "text-sm tabular-nums",
+          kind === "total" && "text-base font-semibold",
+          kind === "minus" && "text-muted-foreground",
+          kind === "total" && value < 0 && "text-destructive",
+          kind === "total" && value >= 0 && "text-success",
+        )}
+      >
+        {kind === "minus" ? "-" : ""}
+        {formatCurrency(Math.abs(value), locale)}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Product Detail - the business view of a single product.
+ *
+ * Every figure comes from GET /api/products/:id/stats, which counts Delivered
+ * orders only and allocates each order's delivery cost across its items by
+ * revenue share. The frontend never re-computes money, so this page and the
+ * Products table can never disagree.
+ */
+export default function ProductDetailPage() {
+  const t = useTranslations("products.detail");
+  const tp = useTranslations("products");
   const te = useTranslations("errors");
   const locale = useLocale() as "en" | "ar";
 
-  const categoryLabel = (value: string) =>
-    isKnownCategory(value) ? t(`categories.${value}`) : value;
+  const params = useParams<{ id: string }>();
+  const productId = params.id;
 
-  const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const queryClient = useQueryClient();
+  const [trendDays, setTrendDays] = useState<TrendDays>(30);
 
-  // ما منبعت طلب مع كل حرف: بنستنى 400ms بعد آخر ضغطة
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  const deleteProductMutation = useMutation({
-    mutationFn: deleteProduct,
-
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
-    },
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["productStats", productId, trendDays],
+    queryFn: () => getProductStats(productId, trendDays),
+    enabled: Boolean(productId),
   });
-
-  const limit = 10;
-
-  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
-    queryKey: ["products", page, limit, search],
-    queryFn: () => getProducts(page, limit, search),
-    placeholderData: keepPreviousData,
-  });
-
-  const products = data?.products ?? [];
-  const pagination = data?.pagination;
-  const stats = data?.stats;
-
-  function handleDelete(productId: string) {
-    deleteProductMutation.mutate(productId);
-  }
 
   if (isLoading) {
     return <ProductsLoading />;
   }
 
-  if (isError) {
+  if (isError || !data) {
     return (
-      <div className="space-y-6">
-        <PageHeader title={t("title")} description={t("description")} />
+      <div className="mx-auto w-full max-w-400 space-y-6">
+        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
 
         <ErrorState
-          description={apiErrorMessage(error, te, te("products"))}
+          description={apiErrorMessage(error, te, te("productNotFound"))}
           onRetry={() => refetch()}
         />
       </div>
     );
   }
 
+  const { product, pricing, inventory, pending, attention } = data;
+  const performance: ProductStatsResponse["performance"] =
+    data.performance ?? NO_PERFORMANCE;
+
+  const categoryLabel = isKnownCategory(product.category)
+    ? tp(`categories.${product.category}`)
+    : product.category;
+
+  const trendTotalUnits = data.salesTrend.reduce(
+    (sum, day) => sum + day.units,
+    0,
+  );
+  const maxTrendUnits = Math.max(...data.salesTrend.map((day) => day.units), 1);
+
+  const firstTrendDay = data.salesTrend[0]?.date ?? "";
+  const lastTrendDay = data.salesTrend[data.salesTrend.length - 1]?.date ?? "";
+
+  const showAttention =
+    attention.outOfStock ||
+    attention.lowStock ||
+    attention.neverSold ||
+    attention.soldBelowDefaultPrice ||
+    attention.profitNegative;
+
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="mx-auto w-full max-w-[1600px] space-y-6"
+      className="mx-auto w-full max-w-400 space-y-7"
     >
       {/* Header */}
       <motion.div variants={itemVariants}>
-        <PageHeader
-          title={t("title")}
-          description={t("description")}
-          actions={
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
             <Button
               nativeButton={false}
-              render={<Link href="/products/add-product" />}
-              className="w-full sm:w-auto"
+              variant="outline"
+              size="icon"
+              className="mt-1 shrink-0"
+              render={<Link href="/products" />}
+              aria-label={t("backAria")}
             >
-              <Plus className="size-4" />
-              {t("add")}
+              <ArrowLeft className="size-4 rtl:-scale-x-100" />
             </Button>
-          }
-        />
-      </motion.div>
 
-      {deleteProductMutation.isError && (
-        <p className="text-sm text-destructive" role="alert">
-          {apiErrorMessage(
-            deleteProductMutation.error,
-            te,
-            te("deleteProduct"),
-          )}
-        </p>
-      )}
-
-      {/* Product Summary */}
-      <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label={t("totalProducts")}
-          value={formatNumber(stats?.totalProducts ?? 0, locale)}
-          icon={Package}
-        />
-
-        <StatCard
-          label={t("totalStock")}
-          value={formatNumber(stats?.totalStock ?? 0, locale)}
-          icon={Boxes}
-        />
-
-        <StatCard
-          label={t("lowOutOfStock")}
-          value={formatNumber(stats?.lowStockCount ?? 0, locale)}
-          icon={AlertTriangle}
-          tone={stats?.lowStockCount ? "warning" : "default"}
-        />
-      </motion.div>
-
-      {/* Products */}
-      <motion.div variants={itemVariants}>
-        <Card className="shadow-none">
-          <CardHeader className="gap-4">
-            <div>
-              <CardTitle className="text-base font-semibold">
-                {t("catalog")}
-              </CardTitle>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+                {product.name}
+              </h1>
 
               <p className="mt-1 text-sm text-muted-foreground">
-                {t("catalogDescription")}
+                {categoryLabel} · {t("deliveredOnly")}
               </p>
             </div>
+          </div>
 
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder={t("searchPlaceholder")}
-                aria-label={t("searchAria")}
-                className="ps-9"
-              />
-            </div>
-          </CardHeader>
-
-          <CardContent
-            className={`p-0 transition-opacity ${
-              isFetching ? "opacity-60" : ""
-            }`}
+          <Button
+            nativeButton={false}
+            variant="outline"
+            className="shrink-0"
+            render={<Link href={`/products/${productId}/edit`} />}
           >
-            {products.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-                <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/40">
-                  <Package className="size-4 text-muted-foreground" />
-                </div>
+            <Pencil className="size-4" />
+            {tp("actions.edit")}
+          </Button>
+        </div>
+      </motion.div>
 
-                <p className="text-sm font-medium">
-                  {search ? t("noMatch", { search }) : t("empty")}
-                </p>
-
-                {!search && (
-                  <Button
-                    nativeButton={false}
-                    render={<Link href="/products/add-product" />}
-                    variant="outline"
-                  >
-                    <Plus className="size-4" />
-                    {t("addFirst")}
-                  </Button>
+      {/* Product overview */}
+      <motion.div variants={itemVariants}>
+        <Card className="overflow-hidden rounded-lg border border-border shadow-none">
+          <CardContent className="p-5">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div className="flex size-20 relative shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface">
+                {product.imageUrl ? (
+                  <Image
+                    src={product.imageUrl}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <ImageIcon
+                    className="size-8 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 )}
               </div>
-            ) : (
-              <>
-                {/* Desktop */}
-                <div className="hidden md:block">
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_48px] items-center border-y bg-muted/20 px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <span>{t("tableProduct")}</span>
-                    <span>{t("tablePrice")}</span>
-                    <span>{t("tableCost")}</span>
-                    <span>{t("tableMargin")}</span>
-                    <span>{t("tableStock")}</span>
-                    <span />
-                  </div>
 
-                  {products.map((product: Product) => {
-                    const { margin, percentage } = getMargin(product);
-                    const stockStatus = getStockStatus(product.stock, t);
-
-                    return (
-                      <div
-                        key={product._id}
-                        className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_48px] items-center border-b px-6 py-4 last:border-b-0"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <ProductThumbnail product={product} />
-
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {product.name}
-                            </p>
-
-                            <p className="truncate text-xs text-muted-foreground">
-                              {categoryLabel(product.category)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <span className="text-sm font-medium tabular-nums">
-                          {formatCurrency(product.price, locale)}
-                        </span>
-
-                        <span className="text-sm text-muted-foreground tabular-nums">
-                          {formatCurrency(product.cost, locale)}
-                        </span>
-
-                        <div>
-                          <p className="text-sm font-medium tabular-nums">
-                            {formatCurrency(margin, locale)}
-                          </p>
-
-                          <p className="text-xs text-muted-foreground tabular-nums">
-                            {formatPercent(percentage, locale, 0)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-medium tabular-nums">
-                            {formatNumber(product.stock, locale)}
-                          </p>
-
-                          <div className="mt-1 flex items-center gap-1.5">
-                            <span
-                              className={`size-1.5 rounded-full ${stockStatus.dotClassName}`}
-                            />
-
-                            <span
-                              className={`text-xs ${stockStatus.className}`}
-                            >
-                              {stockStatus.label}
-                            </span>
-                          </div>
-                        </div>
-
-                        <ProductActions
-                          product={product}
-                          onDelete={handleDelete}
-                          isDeleting={deleteProductMutation.isPending}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Mobile */}
-                <div className="divide-y md:hidden">
-                  {products.map((product: Product) => {
-                    const { margin, percentage } = getMargin(product);
-                    const stockStatus = getStockStatus(product.stock, t);
-
-                    return (
-                      <div key={product._id} className="space-y-4 p-5">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <ProductThumbnail product={product} size="mobile" />
-
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {product.name}
-                              </p>
-
-                              <p className="text-xs text-muted-foreground">
-                                {categoryLabel(product.category)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <ProductActions
-                            product={product}
-                            onDelete={handleDelete}
-                            isDeleting={deleteProductMutation.isPending}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              {t("tablePrice")}
-                            </p>
-
-                            <p className="mt-1 text-sm font-medium tabular-nums">
-                              {formatCurrency(product.price, locale)}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              {t("tableMargin")}
-                            </p>
-
-                            <p className="mt-1 text-sm font-medium tabular-nums">
-                              {formatCurrency(margin, locale)}
-                            </p>
-
-                            <p className="text-xs text-muted-foreground">
-                              {formatPercent(percentage, locale, 0)}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              {t("tableStock")}
-                            </p>
-
-                            <p className="mt-1 text-sm font-medium tabular-nums">
-                              {formatNumber(product.stock, locale)}
-                            </p>
-
-                            <div className="mt-1 flex items-center gap-1.5">
-                              <span
-                                className={`size-1.5 rounded-full ${stockStatus.dotClassName}`}
-                              />
-
-                              <span
-                                className={`text-xs ${stockStatus.className}`}
-                              >
-                                {stockStatus.label}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+              <div className="grid flex-1 grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-4">
+                <Metric
+                  label={tp("sellingPrice")}
+                  value={formatCurrency(product.price, locale)}
+                />
+                <Metric
+                  label={tp("productCost")}
+                  value={formatCurrency(product.cost, locale)}
+                />
+                <Metric
+                  label={t("currentStock")}
+                  value={formatNumber(inventory.currentStock, locale)}
+                  hint={
+                    inventory.outOfStock
+                      ? tp("outOfStock")
+                      : inventory.lowStock
+                        ? tp("lowStock")
+                        : undefined
+                  }
+                  tone={inventory.outOfStock ? "destructive" : "default"}
+                />
+                <Metric
+                  label={t("pendingUnits")}
+                  value={formatNumber(pending.units, locale)}
+                  hint={
+                    pending.orders > 0
+                      ? t("pendingOrdersHint", {
+                          count: formatNumber(pending.orders, locale),
+                        })
+                      : undefined
+                  }
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Pagination */}
-      {(pagination?.totalPages ?? 1) > 1 && (
-        <Pagination
-          currentPage={pagination?.currentPage ?? page}
-          totalPages={pagination?.totalPages ?? 1}
-          hasPreviousPage={pagination?.hasPreviousPage ?? false}
-          hasNextPage={pagination?.hasNextPage ?? false}
-          onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
-          onNext={() => setPage((current) => current + 1)}
-        />
+      {/* Needs attention - only facts backed by real data */}
+      {showAttention && (
+        <motion.div variants={itemVariants}>
+          <Card className="rounded-lg border-s-4 border-s-warning border-border shadow-none">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle
+                  className="mt-0.5 size-5 shrink-0 text-warning"
+                  aria-hidden="true"
+                />
+
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{t("attentionTitle")}</p>
+
+                  <ul className="mt-2 space-y-1.5">
+                    {attention.outOfStock && (
+                      <li className="text-sm text-muted-foreground">
+                        • {t("attentionOutOfStock")}
+                      </li>
+                    )}
+
+                    {attention.lowStock && (
+                      <li className="text-sm text-muted-foreground">
+                        •{" "}
+                        {t("attentionLowStock", {
+                          count: formatNumber(inventory.currentStock, locale),
+                        })}
+                      </li>
+                    )}
+
+                    {attention.neverSold && (
+                      <li className="text-sm text-muted-foreground">
+                        • {t("attentionNeverSold")}
+                      </li>
+                    )}
+
+                    {attention.soldBelowDefaultPrice && (
+                      <li className="text-sm text-muted-foreground">
+                        •{" "}
+                        {t("attentionSoldBelow", {
+                          amount: formatCurrency(
+                            Math.abs(pricing.difference),
+                            locale,
+                          ),
+                        })}
+                      </li>
+                    )}
+
+                    {attention.profitNegative && (
+                      <li className="text-sm text-destructive">
+                        • {t("attentionLoss")}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
+
+      {/* Sales performance */}
+      <motion.div variants={itemVariants}>
+        <Card className="rounded-lg border border-border shadow-none">
+          <CardHeader className="gap-1 border-b border-border">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <ShoppingBag className="size-4 text-muted-foreground" />
+              {t("performanceTitle")}
+            </CardTitle>
+
+            <p className="text-sm text-muted-foreground">
+              {t("performanceDescription")}
+            </p>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+              <Metric
+                label={t("unitsSold")}
+                value={formatNumber(performance.unitsSold, locale)}
+                hint={t("inOrders", {
+                  count: formatNumber(performance.orders, locale),
+                })}
+              />
+
+              <Metric
+                label={t("productSales")}
+                value={formatCurrency(performance.sales, locale)}
+                hint={t("productSalesHint")}
+              />
+
+              <Metric
+                label={t("averageSellingPrice")}
+                value={formatCurrency(performance.averageSellingPrice, locale)}
+                hint={t("aspHint")}
+              />
+
+              <Metric
+                label={t("profitMargin")}
+                value={formatPercent(performance.profitMargin, locale)}
+                tone={performance.profit >= 0 ? "success" : "destructive"}
+              />
+            </div>
+
+            <div className="px-4 py-4">
+              <p className="text-sm font-semibold">{t("moneyFlowTitle")}</p>
+
+              <div className="mt-2">
+                <MoneyLine
+                  label={t("productSales")}
+                  value={performance.sales}
+                  locale={locale}
+                  kind="plus"
+                />
+
+                <MoneyLine
+                  label={t("productCost")}
+                  value={performance.cost}
+                  locale={locale}
+                  kind="minus"
+                />
+
+                <MoneyLine
+                  label={t("deliveryCostAllocated")}
+                  value={performance.deliveryCost}
+                  locale={locale}
+                  kind="minus"
+                />
+
+                <MoneyLine
+                  label={t("productProfit")}
+                  value={performance.profit}
+                  locale={locale}
+                  kind="total"
+                />
+              </div>
+
+              {performance.deliveryCollected > 0 && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {t("deliveryCollectedNote", {
+                    amount: formatCurrency(
+                      performance.deliveryCollected,
+                      locale,
+                    ),
+                  })}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Pricing + delivery */}
+      <motion.div variants={itemVariants}>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="rounded-lg border border-border shadow-none">
+            <CardHeader className="gap-1 border-b border-border">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <DollarSign className="size-4 text-muted-foreground" />
+                {t("pricingTitle")}
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <div className="grid grid-cols-2 gap-px bg-border">
+                <Metric
+                  label={t("defaultPrice")}
+                  value={formatCurrency(pricing.defaultPrice, locale)}
+                />
+
+                <Metric
+                  label={t("actualAveragePrice")}
+                  value={formatCurrency(pricing.averageSellingPrice, locale)}
+                  tone={pricing.soldBelowDefault ? "destructive" : "default"}
+                />
+
+                <Metric
+                  label={t("priceDifference")}
+                  value={formatCurrency(pricing.difference, locale)}
+                  hint={
+                    pricing.averageSellingPrice > 0
+                      ? formatPercent(pricing.differencePercent, locale)
+                      : undefined
+                  }
+                  tone={pricing.difference < 0 ? "destructive" : "success"}
+                />
+
+                <Metric
+                  label={t("averageCostPerUnit")}
+                  value={formatCurrency(performance.averageCost, locale)}
+                  hint={t("capitalHint")}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border border-border shadow-none">
+            <CardHeader className="gap-1 border-b border-border">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <Truck className="size-4 text-muted-foreground" />
+                {t("deliveryTitle")}
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <div className="grid grid-cols-2 gap-px bg-border">
+                <Metric
+                  label={t("deliveryCostAllocated")}
+                  value={formatCurrency(performance.deliveryCost, locale)}
+                  hint={t("deliveryShareHint")}
+                />
+
+                <Metric
+                  label={t("deliveryCostPerUnit")}
+                  value={formatCurrency(
+                    performance.deliveryCostPerUnit,
+                    locale,
+                  )}
+                  hint={
+                    performance.unitsSold > 0
+                      ? t("perUnitHint", {
+                          count: formatNumber(performance.unitsSold, locale),
+                        })
+                      : undefined
+                  }
+                />
+
+                <Metric
+                  label={t("deliveryCollected")}
+                  value={formatCurrency(performance.deliveryCollected, locale)}
+                  hint={t("deliveryCollectedHint")}
+                />
+
+                <Metric
+                  label={t("daysOfStockLeft")}
+                  value={
+                    inventory.daysOfStockLeft !== null
+                      ? formatNumber(inventory.daysOfStockLeft, locale, {
+                          maximumFractionDigits: 1,
+                        })
+                      : "-"
+                  }
+                  hint={t("daysOfStockHint", { days: String(trendDays) })}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
+
+      {/* Sales trend - real daily units, no forecasting */}
+      <motion.div variants={itemVariants}>
+        <Card className="rounded-lg border border-border shadow-none">
+          <CardHeader className="gap-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base font-semibold">
+                {t("trendTitle")}
+              </CardTitle>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("trendDescription", {
+                  count: formatNumber(trendTotalUnits, locale),
+                })}
+              </p>
+            </div>
+
+            <div
+              className="flex gap-1 rounded-md border border-border p-1"
+              role="group"
+              aria-label={t("trendRangeAria")}
+            >
+              {TREND_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setTrendDays(option)}
+                  aria-pressed={trendDays === option}
+                  className={cn(
+                    "rounded-sm px-3 py-1.5 text-xs font-medium transition-colors",
+                    trendDays === option
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {t("trendDays", { days: String(option) })}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-5">
+            <div
+              className="flex h-32 items-end gap-1"
+              role="img"
+              aria-label={t("trendAria", {
+                count: formatNumber(trendTotalUnits, locale),
+              })}
+            >
+              {data.salesTrend.map((day) => (
+                <div
+                  key={day.date}
+                  className="flex-1"
+                  title={`${day.date}: ${formatNumber(day.units, locale)}`}
+                >
+                  <div
+                    className={cn(
+                      "w-full rounded-sm",
+                      day.units > 0 ? "bg-primary" : "bg-border",
+                    )}
+                    style={{
+                      height: `${Math.max(
+                        (day.units / maxTrendUnits) * 100,
+                        day.units > 0 ? 6 : 3,
+                      )}%`,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{firstTrendDay}</span>
+              <span>{lastTrendDay}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Recent delivered orders */}
+      <motion.div variants={itemVariants}>
+        <Card className="rounded-lg border border-border shadow-none">
+          <CardHeader className="gap-1 border-b border-border">
+            <CardTitle className="text-base font-semibold">
+              {t("recentTitle")}
+            </CardTitle>
+
+            <p className="text-sm text-muted-foreground">
+              {t("recentDescription")}
+            </p>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {data.recentOrders.length === 0 ? (
+              <EmptyState
+                icon={ShoppingBag}
+                title={t("recentEmpty")}
+                description={t("recentEmptyDescription")}
+              />
+            ) : (
+              <ul className="divide-y divide-border">
+                {data.recentOrders.map((order) => (
+                  <li
+                    key={order._id}
+                    className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {order.customer}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(order.createdAt, locale)} -{" "}
+                        {t("qtyTimesPrice", {
+                          qty: formatNumber(order.quantity, locale),
+                          price: formatCurrency(order.unitPrice, locale),
+                        })}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-4 text-sm">
+                      <span className="text-muted-foreground tabular-nums">
+                        {t("lineCost", {
+                          amount: formatCurrency(order.unitCost, locale),
+                        })}
+                      </span>
+
+                      <span className="font-semibold tabular-nums">
+                        {formatCurrency(
+                          order.quantity * order.unitPrice,
+                          locale,
+                        )}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
     </motion.div>
   );
 }

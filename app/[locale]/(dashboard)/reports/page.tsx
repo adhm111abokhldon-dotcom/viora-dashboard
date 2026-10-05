@@ -215,7 +215,8 @@ export default function ReportsPage() {
     );
   }
 
-  const { summary, salesData, topProducts, orderStatus } = reports;
+  const { summary, financials, salesData, topProducts, orderStatus } =
+    reports;
 
   const totalStatusOrders = orderStatus.reduce(
     (total, status) => total + status.value,
@@ -282,18 +283,18 @@ export default function ReportsPage() {
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           >
             <SummaryCard
-              label={t("totalSales")}
-              value={formatCurrency(summary.totalSales, locale)}
-              hint={t("activeOrdersHint", {
-                count: formatNumber(summary.activeOrders, locale),
+              label={t("productSales")}
+              value={formatCurrency(summary.productSales, locale)}
+              hint={t("deliveredOrdersHint", {
+                count: formatNumber(summary.deliveredOrdersInRange, locale),
               })}
               icon={DollarSign}
               tone="primary"
             />
 
             <SummaryCard
-              label={t("totalProfit")}
-              value={formatCurrency(summary.totalProfit, locale)}
+              label={t("productProfit")}
+              value={formatCurrency(summary.productProfit, locale)}
               hint={t("marginHint", {
                 value: formatNumber(summary.profitMargin, locale, {
                   minimumFractionDigits: 1,
@@ -301,7 +302,7 @@ export default function ReportsPage() {
                 }),
               })}
               icon={TrendingUp}
-              tone={summary.totalProfit < 0 ? "destructive" : "success"}
+              tone={summary.productProfit < 0 ? "destructive" : "success"}
             />
 
             <SummaryCard
@@ -321,6 +322,146 @@ export default function ReportsPage() {
               icon={BarChart3}
               tone="primary"
             />
+          </motion.div>
+
+          {/* Where the money goes */}
+          <motion.div variants={itemVariants}>
+            <Card className="rounded-lg border border-border bg-card shadow-none">
+              <CardHeader className="gap-1 border-b border-border">
+                <CardTitle className="text-base font-semibold text-text">
+                  {t("moneyFlowTitle")}
+                </CardTitle>
+
+                <p className="text-sm text-text-muted">
+                  {t("moneyFlowDescription")}
+                </p>
+              </CardHeader>
+
+              <CardContent className="pt-5">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div>
+                    {[
+                      {
+                        key: "productSales",
+                        label: t("productSales"),
+                        value: financials.productSales,
+                        kind: "plus" as const,
+                      },
+                      {
+                        key: "productCost",
+                        label: t("productCost"),
+                        value: financials.productCost,
+                        kind: "minus" as const,
+                      },
+                      {
+                        key: "deliveryCost",
+                        label: t("deliveryCost"),
+                        value: financials.deliveryCost,
+                        kind: "minus" as const,
+                      },
+                      {
+                        key: "productProfit",
+                        label: t("productProfit"),
+                        value: financials.productProfit,
+                        kind: "total" as const,
+                      },
+                    ].map((line) => (
+                      <div
+                        key={line.key}
+                        className={
+                          line.kind === "total"
+                            ? "mt-1 flex items-baseline justify-between gap-4 border-t border-border pt-3"
+                            : "flex items-baseline justify-between gap-4 py-2"
+                        }
+                      >
+                        <span
+                          className={
+                            line.kind === "total"
+                              ? "text-sm font-semibold text-text"
+                              : "text-sm text-text-muted"
+                          }
+                        >
+                          {line.label}
+                        </span>
+
+                        <span
+                          className={
+                            line.kind === "total"
+                              ? `text-base font-semibold tabular-nums ${
+                                  line.value < 0
+                                    ? "text-destructive"
+                                    : "text-success"
+                                }`
+                              : "text-sm tabular-nums text-text"
+                          }
+                        >
+                          {line.kind === "minus" ? "-" : ""}
+                          {formatCurrency(Math.abs(line.value), locale)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <div className="flex items-baseline justify-between gap-4 py-2">
+                      <span className="text-sm text-text-muted">
+                        {t("deliveryCollected")}
+                      </span>
+
+                      <span className="text-sm tabular-nums text-text-muted">
+                        {formatCurrency(financials.deliveryCollected, locale)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-baseline justify-between gap-4 py-2">
+                      <span className="text-sm text-text-muted">
+                        {t("advertisingSpend")}
+                      </span>
+
+                      <span className="text-sm tabular-nums text-text-muted">
+                        {formatCurrency(financials.advertisingSpend, locale)}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 flex items-baseline justify-between gap-4 border-t border-border pt-3">
+                      <span className="text-sm font-semibold text-text">
+                        {t("netProfitAfterAds")}
+                      </span>
+
+                      <span
+                        className={`text-base font-semibold tabular-nums ${
+                          financials.netProfitAfterAds < 0
+                            ? "text-destructive"
+                            : "text-success"
+                        }`}
+                      >
+                        {formatCurrency(financials.netProfitAfterAds, locale)}
+                      </span>
+                    </div>
+
+                    <p className="mt-2 text-xs text-text-muted">
+                      {t("netMarginHint", {
+                        value: formatNumber(financials.netMargin, locale, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        }),
+                      })}
+                    </p>
+
+                    {financials.deliveryCollected > 0 && (
+                      <p className="mt-2 text-xs text-text-muted">
+                        {t("deliveryCollectedNote", {
+                          amount: formatCurrency(
+                            financials.deliveryCollected,
+                            locale,
+                          ),
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
 
           {/* Sales & Profit */}
@@ -582,7 +723,7 @@ export default function ReportsPage() {
 
                   <MetricTile
                     label={t("deliveryRevenue")}
-                    value={formatCurrency(summary.deliveryRevenue, locale)}
+                    value={formatCurrency(summary.deliveryCollected, locale)}
                     hint={t("costHint", {
                       amount: formatCurrency(summary.deliveryCost, locale),
                     })}
@@ -590,15 +731,8 @@ export default function ReportsPage() {
 
                   <MetricTile
                     label={t("deliveryNet")}
-                    value={formatCurrency(
-                      summary.deliveryRevenue - summary.deliveryCost,
-                      locale,
-                    )}
-                    tone={
-                      summary.deliveryRevenue - summary.deliveryCost < 0
-                        ? "destructive"
-                        : "success"
-                    }
+                    value={formatCurrency(summary.deliveryNet, locale)}
+                    tone={summary.deliveryNet < 0 ? "destructive" : "success"}
                   />
                 </div>
               </CardContent>

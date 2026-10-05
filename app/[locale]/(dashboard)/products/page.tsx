@@ -24,18 +24,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { deleteProduct, getProducts, Product } from "@/lib/api";
+import {
+  deleteProduct,
+  getProducts,
+  Product,
+  type ProductPerformance,
+} from "@/lib/api";
 import { ProductActions } from "@/components/ProductActions";
 import { Pagination } from "@/components/ui/Pagination";
 import ProductsLoading from "@/components/ProductsLoading";
 import PageHeader from "@/components/PageHeader";
 import ErrorState from "@/components/ErrorState";
 import { containerVariants, itemVariants } from "@/lib/motion";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import { isKnownCategory } from "@/lib/categories";
+import { cn } from "@/lib/utils";
 
 const LOW_STOCK_THRESHOLD = 10;
+
+/** Fallback when the API sends no performance block (e.g. a cached payload). */
+const NO_PERFORMANCE: ProductPerformance = {
+  unitsSold: 0,
+  orders: 0,
+  sales: 0,
+  cost: 0,
+  deliveryCost: 0,
+  profit: 0,
+  averageSellingPrice: 0,
+  profitMargin: 0,
+  realisedMargin: 0,
+};
 
 function getStockStatus(stock: number, t: (key: string) => string) {
   if (stock === 0) {
@@ -59,13 +78,6 @@ function getStockStatus(stock: number, t: (key: string) => string) {
     className: "text-success",
     dotClassName: "bg-success",
   };
-}
-
-function getMargin(product: Product) {
-  const margin = product.price - product.cost;
-  const percentage = product.price > 0 ? (margin / product.price) * 100 : 0;
-
-  return { margin, percentage };
 }
 
 function ProductThumbnail({
@@ -357,27 +369,32 @@ export default function ProductsPage() {
                 <div className="hidden md:block">
                   <div className="max-h-170 overflow-y-auto overflow-x-hidden">
                     {/* Table Header */}
-                    <div className="sticky top-0 z-10 grid grid-cols-[minmax(220px,2fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)_48px] items-center gap-4 border-b border-border bg-card px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <div className="sticky top-0 z-10 grid grid-cols-[minmax(200px,2fr)_minmax(80px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(90px,1fr)_48px] items-center gap-4 border-b border-border bg-card px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <span>{t("tableProduct")}</span>
-                      <span>{t("tablePrice")}</span>
-                      <span>{t("tableCost")}</span>
-                      <span>{t("tableMargin")}</span>
+                      <span className="text-end">{t("tableUnitsSold")}</span>
+                      <span className="text-end">{t("tableSales")}</span>
+                      <span className="text-end">{t("tableProfit")}</span>
+                      <span className="text-end">{t("tableAvgPrice")}</span>
                       <span>{t("tableStock")}</span>
                       <span />
                     </div>
 
                     {products.map((product: Product) => {
-                      const { margin, percentage } = getMargin(product);
-
                       const stockStatus = getStockStatus(product.stock, t);
+                      const performance: ProductPerformance =
+                        product.performance ?? NO_PERFORMANCE;
+                      const hasSales = performance.unitsSold > 0;
 
                       return (
                         <div
                           key={product._id}
-                          className="grid grid-cols-[minmax(220px,2fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)_48px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0"
+                          className="grid grid-cols-[minmax(200px,2fr)_minmax(80px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(90px,1fr)_48px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0"
                         >
                           {/* Product */}
-                          <div className="flex min-w-0 items-center gap-3">
+                          <Link
+                            href={`/products/${product._id}`}
+                            className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
                             <ProductThumbnail product={product} />
 
                             <div className="min-w-0">
@@ -386,31 +403,53 @@ export default function ProductsPage() {
                               </p>
 
                               <p className="truncate text-xs text-muted-foreground">
-                                {categoryLabel(product.category)}
+                                {categoryLabel(product.category)} ·{" "}
+                                {formatCurrency(product.price, locale)}
                               </p>
                             </div>
-                          </div>
+                          </Link>
 
-                          {/* Price */}
-                          <span className="text-sm font-medium tabular-nums">
-                            {formatCurrency(product.price, locale)}
+                          {/* Units sold */}
+                          <span className="text-end text-sm font-medium tabular-nums">
+                            {hasSales
+                              ? formatNumber(performance.unitsSold, locale)
+                              : "—"}
                           </span>
 
-                          {/* Cost */}
-                          <span className="text-sm text-muted-foreground tabular-nums">
-                            {formatCurrency(product.cost, locale)}
+                          {/* Sales */}
+                          <span className="text-end text-sm font-medium tabular-nums">
+                            {hasSales
+                              ? formatCurrency(performance.sales, locale)
+                              : "—"}
                           </span>
 
-                          {/* Margin */}
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium tabular-nums">
-                              {formatCurrency(margin, locale)}
-                            </p>
+                          {/* Profit */}
+                          <span
+                            className={cn(
+                              "text-end text-sm font-semibold tabular-nums",
+                              !hasSales && "text-muted-foreground",
+                              hasSales &&
+                                performance.profit >= 0 &&
+                                "text-success",
+                              hasSales &&
+                                performance.profit < 0 &&
+                                "text-destructive",
+                            )}
+                          >
+                            {hasSales
+                              ? formatCurrency(performance.profit, locale)
+                              : "—"}
+                          </span>
 
-                            <p className="text-xs text-muted-foreground tabular-nums">
-                              {formatPercent(percentage, locale, 0)}
-                            </p>
-                          </div>
+                          {/* Average selling price */}
+                          <span className="text-end text-sm text-muted-foreground tabular-nums">
+                            {hasSales
+                              ? formatCurrency(
+                                  performance.averageSellingPrice,
+                                  locale,
+                                )
+                              : "—"}
+                          </span>
 
                           {/* Stock */}
                           <div className="min-w-0">
@@ -448,14 +487,18 @@ export default function ProductsPage() {
                 {/* Mobile */}
                 <div className="divide-y divide-border md:hidden">
                   {products.map((product: Product) => {
-                    const { margin, percentage } = getMargin(product);
-
                     const stockStatus = getStockStatus(product.stock, t);
+                    const performance: ProductPerformance =
+                      product.performance ?? NO_PERFORMANCE;
+                    const hasSales = performance.unitsSold > 0;
 
                     return (
-                      <div key={product._id} className="space-y-5 p-5">
+                      <div key={product._id} className="space-y-4 p-5">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-3">
+                          <Link
+                            href={`/products/${product._id}`}
+                            className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
                             <ProductThumbnail product={product} size="mobile" />
 
                             <div className="min-w-0">
@@ -464,10 +507,11 @@ export default function ProductsPage() {
                               </p>
 
                               <p className="truncate text-xs text-muted-foreground">
-                                {categoryLabel(product.category)}
+                                {categoryLabel(product.category)} ·{" "}
+                                {formatCurrency(product.price, locale)}
                               </p>
                             </div>
-                          </div>
+                          </Link>
 
                           <ProductActions
                             product={product}
@@ -476,43 +520,55 @@ export default function ProductsPage() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border">
-                          <div className="border-e border-b border-border p-3.5">
-                            <p className="text-xs text-muted-foreground">
-                              {t("tablePrice")}
+                        <div className="grid grid-cols-4 gap-px overflow-hidden rounded-md border border-border bg-border">
+                          <div className="bg-card px-3 py-2.5">
+                            <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+                              {t("tableUnitsSold")}
                             </p>
 
                             <p className="mt-1 text-sm font-medium tabular-nums">
-                              {formatCurrency(product.price, locale)}
+                              {hasSales
+                                ? formatNumber(performance.unitsSold, locale)
+                                : "—"}
                             </p>
                           </div>
 
-                          <div className="border-b border-border p-3.5">
-                            <p className="text-xs text-muted-foreground">
-                              {t("tableCost")}
+                          <div className="bg-card px-3 py-2.5">
+                            <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+                              {t("tableSales")}
                             </p>
 
                             <p className="mt-1 text-sm font-medium tabular-nums">
-                              {formatCurrency(product.cost, locale)}
+                              {hasSales
+                                ? formatCurrency(performance.sales, locale)
+                                : "—"}
                             </p>
                           </div>
 
-                          <div className="border-e border-border p-3.5">
-                            <p className="text-xs text-muted-foreground">
-                              {t("tableMargin")}
+                          <div className="bg-card px-3 py-2.5">
+                            <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+                              {t("tableProfit")}
                             </p>
 
-                            <p className="mt-1 text-sm font-medium tabular-nums">
-                              {formatCurrency(margin, locale)}
-                            </p>
-
-                            <p className="text-xs text-muted-foreground tabular-nums">
-                              {formatPercent(percentage, locale, 0)}
+                            <p
+                              className={cn(
+                                "mt-1 text-sm font-semibold tabular-nums",
+                                hasSales &&
+                                  performance.profit >= 0 &&
+                                  "text-success",
+                                hasSales &&
+                                  performance.profit < 0 &&
+                                  "text-destructive",
+                              )}
+                            >
+                              {hasSales
+                                ? formatCurrency(performance.profit, locale)
+                                : "—"}
                             </p>
                           </div>
 
-                          <div className="p-3.5">
-                            <p className="text-xs text-muted-foreground">
+                          <div className="bg-card px-3 py-2.5">
+                            <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
                               {t("tableStock")}
                             </p>
 
@@ -526,7 +582,7 @@ export default function ProductsPage() {
                               />
 
                               <span
-                                className={`text-xs ${stockStatus.className}`}
+                                className={`truncate text-xs ${stockStatus.className}`}
                               >
                                 {stockStatus.label}
                               </span>
