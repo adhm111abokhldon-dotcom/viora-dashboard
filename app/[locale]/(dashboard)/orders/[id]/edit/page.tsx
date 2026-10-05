@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -26,7 +26,8 @@ import {
 } from "@/lib/api";
 import { useRouter } from "@/i18n/navigation";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 
 type FormErrors = {
   customer?: string;
@@ -54,12 +55,12 @@ export default function EditOrderPage() {
   const tStatus = useTranslations("status");
   const tp = useTranslations("products");
   const tc = useTranslations("common");
-  const te = useTranslations("errors");
   const locale = useLocale() as "en" | "ar";
 
   const params = useParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
 
   const orderId = params.id as string;
 
@@ -175,28 +176,16 @@ export default function EditOrderPage() {
   const updateOrderMutation = useMutation({
     mutationFn: (data: CreateOrderData) => updateOrder(orderId, data),
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["orders"],
-      });
+    onSuccess: async () => {
+      toast.success("orderUpdated");
 
-      queryClient.invalidateQueries({
-        queryKey: ["order", orderId],
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["dashboard"],
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["reports"],
-      });
+      await invalidateAll();
 
       router.push("/orders");
+    },
+
+    onError: (error) => {
+      toast.error(error, "updateOrder");
     },
   });
 
@@ -825,12 +814,6 @@ export default function EditOrderPage() {
               </CardContent>
             </Card>
 
-            {/* Mutation error */}
-            {updateOrderMutation.isError && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {apiErrorMessage(updateOrderMutation.error, te, te("updateOrder"))}
-              </div>
-            )}
 
             {/* Actions */}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

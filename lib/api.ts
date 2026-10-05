@@ -252,6 +252,18 @@ export type AdvertisingExpense = {
   platform: string;
   campaign?: string;
   note?: string;
+  /** Missing on rows created before the field existed = manual. */
+  source?: "manual" | "windsor";
+  externalKey?: string;
+  messages?: number;
+  clicks?: number;
+  /** Raw amount as the source reported it (Windsor rows: AED). */
+  originalAmount?: number;
+  originalCurrency?: string;
+  store?: "viora" | "trendora";
+  connectionId?: string;
+  accountId?: string;
+  accountName?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -352,6 +364,204 @@ export async function deleteAdvertisingExpense(expenseId: string): Promise<void>
   if (!response.ok) {
     throw new Error("Failed to delete advertising expense");
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Windsor sync + insights                                                     */
+/* -------------------------------------------------------------------------- */
+
+export type AdVerdict = "scale" | "watch" | "losing" | "noData";
+
+export type AdStore = "viora" | "trendora";
+
+/** One Windsor ad account inside a connection. A connection may hold several. */
+export type AdSource = {
+  store: AdStore;
+  connectionId: string;
+  connectionLabel: string;
+  accountId: string;
+  accountName: string;
+  /** Period actually returned by Windsor for this account. */
+  from: string | null;
+  to: string | null;
+  rowCount: number;
+  /** AED as Windsor reported it. */
+  sourceSpend: number;
+  /** USD after the fixed conversion. */
+  spend: number;
+  messages: number;
+  clicks: number;
+  costPerMessage: number | null;
+  /** Account seen by Windsor but with no usable rows (e.g. disabled). */
+  empty?: boolean;
+};
+
+export type AdCampaign = {
+  store: string;
+  accountId: string;
+  accountName: string;
+  campaign: string;
+  spend: number;
+  sourceSpend: number;
+  messages: number;
+  clicks: number;
+  costPerMessage: number | null;
+  flagged: boolean;
+};
+
+export type AdInsights = {
+  /** Fixed rate label, e.g. "3.67 AED / USD". */
+  rate: string;
+  sourceCurrency: string;
+  /** Period Windsor actually has data for. */
+  availablePeriod: { from: string | null; to: string | null };
+  connections: Array<{
+    id: string;
+    store: string;
+    label: string;
+    configured: boolean;
+  }>;
+
+  /** Per-store / per-ad-account breakdown of stored Windsor rows. */
+  sources: Array<{
+    store: string;
+    connectionId: string;
+    connectionLabel: string;
+    accountId: string;
+    accountName: string;
+    from: string | null;
+    to: string | null;
+    rowCount: number;
+    sourceSpend: number;
+    spend: number;
+    messages: number;
+    clicks: number;
+    costPerMessage: number | null;
+  }>;
+
+  /** ALL available Windsor data - no artificial 7/30 limit. */
+  windsor: {
+    spend: number;
+    sourceSpend: number;
+    messages: number;
+    clicks: number;
+    costPerMessage: number | null;
+  };
+
+  /** ALL manual expenses, already USD. */
+  manual: { spend: number; count: number };
+
+  /** The single advertising pool: Windsor USD + Manual USD. */
+  total: { adSpend: number; costPerMessage: number | null };
+
+  /** Period-scoped order/profit funnel. `range` only affects this block. */
+  funnel: {
+    range: number;
+    adSpend: number;
+    windsorSpend: number;
+    manualSpend: number;
+    messages: number;
+    clicks: number;
+    costPerMessage: number | null;
+    deliveredOrders: number;
+    profitBeforeAds: number;
+    costPerOrder: number | null;
+    profitPerOrderBeforeAds: number | null;
+    messageToOrderRate: number | null;
+    breakEvenCostPerOrder: number | null;
+    breakEvenCostPerMessage: number | null;
+    verdict: AdVerdict;
+    verdictReason: string;
+  };
+
+  campaigns: AdCampaign[];
+};
+
+export async function getAdInsights(range: 7 | 30): Promise<AdInsights> {
+  const response = await fetch(`${API_URL}/advertising/insights?range=${range}`);
+
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, "Failed to fetch insights"));
+  }
+
+  return response.json();
+}
+
+export type WindsorPreviewRow = {
+  store: string;
+  accountId: string;
+  accountName: string;
+  date: string;
+  campaign: string;
+  /** Raw amount as Windsor reported it (AED). */
+  sourceSpend: number;
+  /** Converted to USD - what will be stored. */
+  spend: number;
+  clicks: number;
+  messages: number;
+  costPerMessage: number | null;
+};
+
+export type WindsorPreview = {
+  rate: string;
+  currency: string;
+  /** Actual period Windsor holds data for. */
+  availableFrom: string | null;
+  availableTo: string | null;
+  connections: Array<{
+    id: string;
+    store: string;
+    label: string;
+    rowCount: number;
+    accountCount: number;
+  }>;
+  errors: Array<{ connectionId: string; message: string }>;
+  sources: AdSource[];
+  rows: WindsorPreviewRow[];
+  totals: { sourceSpend: number; spend: number; clicks: number; messages: number };
+  created: number;
+  updated: number;
+  unchanged: number;
+  /** Manual spend in USD - a separate account, added to (never blocking) Windsor. */
+  manual: { total: number; count: number };
+};
+
+/** No date range: Windsor returns its full available period. */
+export async function previewWindsorSync(): Promise<WindsorPreview> {
+  const response = await fetch(`${API_URL}/advertising/windsor/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await errorMessage(response, "Failed to preview Windsor data"),
+    );
+  }
+
+  return response.json();
+}
+
+export type WindsorSyncResult = WindsorPreview & {
+  totalSourceSpend: number;
+  totalSpend: number;
+  totalMessages: number;
+  totalClicks: number;
+};
+
+export async function syncWindsorAds(): Promise<WindsorSyncResult> {
+  const response = await fetch(`${API_URL}/advertising/windsor/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, "Failed to sync from Windsor"));
+  }
+
+  return response.json();
 }
 
 // Orders

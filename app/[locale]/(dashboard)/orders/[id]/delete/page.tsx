@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteOrder, getOrderById } from "@/lib/api";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 
 export default function DeleteOrderPage() {
   const t = useTranslations("orders.delete");
@@ -22,6 +24,8 @@ export default function DeleteOrderPage() {
 
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
 
   const orderId = params.id;
 
@@ -39,9 +43,17 @@ export default function DeleteOrderPage() {
   const deleteOrderMutation = useMutation({
     mutationFn: () => deleteOrder(orderId),
 
-    onSuccess: () => {
+    onSuccess: async () => {
+      toast.success("orderDeleted");
+
+      await invalidateAll();
+
       router.push("/orders");
       router.refresh();
+    },
+
+    onError: (error) => {
+      toast.error(error, "deleteOrder");
     },
   });
 
@@ -245,11 +257,6 @@ export default function DeleteOrderPage() {
         </Button>
       </div>
 
-      {deleteOrderMutation.isError && (
-        <p className="text-center text-sm text-destructive">
-          {apiErrorMessage(deleteOrderMutation.error, te, te("deleteOrder"))}
-        </p>
-      )}
     </div>
   );
 }

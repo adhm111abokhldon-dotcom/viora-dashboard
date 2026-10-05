@@ -13,7 +13,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,8 +33,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { createOrder, getProducts, Product } from "@/lib/api";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { apiErrorMessage } from "@/lib/errors";
 import AddProductLoading from "@/components/AddProductLoading";
 import Image from "next/image";
 
@@ -59,20 +60,19 @@ function ProductThumbnail({
   product: Product;
   size?: "sm" | "md";
 }) {
-  const sizeClass = size === "md" ? "size-14" : "size-10";
   const iconClass = size === "md" ? "size-5" : "size-4";
 
   if (product.imageUrl) {
     return (
       <div
-        className={`shrink-0 relative overflow-hidden rounded-md border border-border bg-surface ${sizeClass}`}
+        className={`shrink-0 size-10 relative overflow-hidden rounded-md border border-border bg-surface`}
       >
         <Image
           src={product.imageUrl}
           alt={product.name}
-          fill
-          
-          className=" object-cover"
+          width={40}
+          height={40}
+          className="max-w-full max-h-full  object-cover"
         />
       </div>
     );
@@ -80,7 +80,7 @@ function ProductThumbnail({
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-muted ${sizeClass}`}
+      className={`flex shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-muted size-10`}
       aria-hidden="true"
     >
       <ImageIcon className={iconClass} />
@@ -91,10 +91,10 @@ function ProductThumbnail({
 export default function NewOrderPage() {
   const t = useTranslations("orderForm");
   const tv = useTranslations("orderForm.validation");
-  const te = useTranslations("errors");
   const locale = useLocale() as "en" | "ar";
 
-  const queryClient = useQueryClient();
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
   const router = useRouter();
 
   const [customer, setCustomer] = useState("");
@@ -156,24 +156,16 @@ export default function NewOrderPage() {
   const createOrderMutation = useMutation({
     mutationFn: createOrder,
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["orders"],
-      });
+    onSuccess: async () => {
+      toast.success("orderCreated");
 
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["dashboard"],
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["reports"],
-      });
+      await invalidateAll();
 
       router.push("/orders");
+    },
+
+    onError: (error) => {
+      toast.error(error, "createOrder");
     },
   });
 
@@ -774,15 +766,6 @@ export default function NewOrderPage() {
             </div>
           </CardContent>
         </Card>
-
-        {createOrderMutation.isError && (
-          <div
-            className="border-s-4 border-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
-            role="alert"
-          >
-            {apiErrorMessage(createOrderMutation.error, te, te("createOrder"))}
-          </div>
-        )}
 
         {/* Actions */}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

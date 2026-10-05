@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
   ArrowUpRight,
@@ -46,6 +46,8 @@ import { orderStatusDot } from "@/lib/status";
 import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 import ErrorState from "@/components/ErrorState";
 import OrderActions from "@/components/OrderActions";
 import PageHeader from "@/components/PageHeader";
@@ -202,7 +204,8 @@ export default function DashboardPage() {
     queryFn: getDashboard,
   });
 
-  const queryClient = useQueryClient();
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
 
   const updateOrderStatusMutation = useMutation({
     mutationFn: ({
@@ -213,18 +216,18 @@ export default function DashboardPage() {
       status: OrderStatus;
     }) => updateOrderStatus(orderId, status),
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["dashboard"],
-      });
+    onSuccess: async (_data, variables) => {
+      toast.success(
+        variables.status === "Delivered"
+          ? "orderMarkedDelivered"
+          : "orderCancelled",
+      );
 
-      queryClient.invalidateQueries({
-        queryKey: ["orders"],
-      });
+      await invalidateAll();
+    },
 
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
+    onError: (error) => {
+      toast.error(error, "updateOrderStatus");
     },
   });
 
@@ -341,21 +344,6 @@ export default function DashboardPage() {
       <motion.div variants={itemVariants}>
         <PageHeader title={t("title")} description={t("description")} />
       </motion.div>
-
-      {/* Mutation Error */}
-      {updateOrderStatusMutation.isError && (
-        <motion.div
-          variants={itemVariants}
-          className="border-s-4 border-s-destructive bg-destructive px-4 py-3 text-sm text-destructive-foreground"
-          role="alert"
-        >
-          {apiErrorMessage(
-            updateOrderStatusMutation.error,
-            te,
-            te("updateOrderStatus"),
-          )}
-        </motion.div>
-      )}
 
       {/* KPI */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

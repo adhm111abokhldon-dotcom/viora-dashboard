@@ -19,7 +19,6 @@ import {
   keepPreviousData,
   useMutation,
   useQuery,
-  useQueryClient,
 } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -57,6 +56,8 @@ import ErrorState from "@/components/ErrorState";
 import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 
 function ProfitText({ order, locale }: { order: Order; locale: "en" | "ar" }) {
   if (order.status === "Cancelled") {
@@ -233,7 +234,8 @@ export default function OrdersPage() {
     Cancelled: tStatus("cancelled"),
   };
 
-  const queryClient = useQueryClient();
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
 
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -274,18 +276,18 @@ export default function OrdersPage() {
       status: OrderStatus;
     }) => updateOrderStatus(orderId, status),
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["orders"],
-      });
+    onSuccess: async (_data, variables) => {
+      toast.success(
+        variables.status === "Delivered"
+          ? "orderMarkedDelivered"
+          : "orderCancelled",
+      );
 
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
+      await invalidateAll();
+    },
 
-      queryClient.invalidateQueries({
-        queryKey: ["dashboard"],
-      });
+    onError: (error) => {
+      toast.error(error, "updateOrderStatus");
     },
   });
 
@@ -347,21 +349,6 @@ export default function OrdersPage() {
         />
       </motion.div>
 
-      {/* Status Update Error */}
-      {updateOrderStatusMutation.isError && (
-        <motion.div variants={itemVariants}>
-          <div
-            className="border-s-4 border-s-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
-            role="alert"
-          >
-            {apiErrorMessage(
-              updateOrderStatusMutation.error,
-              te,
-              te("updateOrderStatus"),
-            )}
-          </div>
-        </motion.div>
-      )}
 
       {/* Summary */}
       <motion.div

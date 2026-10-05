@@ -16,7 +16,6 @@ import {
   keepPreviousData,
   useMutation,
   useQuery,
-  useQueryClient,
 } from "@tanstack/react-query";
 import Image from "next/image";
 
@@ -38,6 +37,8 @@ import ErrorState from "@/components/ErrorState";
 import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 import { isKnownCategory } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 
@@ -92,14 +93,13 @@ function ProductThumbnail({
   if (product.imageUrl) {
     return (
       <div
-        className={`flex ${sizeClass} shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface`}
+        className={`flex relative ${sizeClass} shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface`}
       >
         <Image
           src={product.imageUrl}
           alt={product.name}
           loading="lazy"
-          width={50}
-          height={50}
+          fill
           className=" object-cover"
         />
       </div>
@@ -185,7 +185,8 @@ export default function ProductsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
-  const queryClient = useQueryClient();
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -199,10 +200,14 @@ export default function ProductsPage() {
   const deleteProductMutation = useMutation({
     mutationFn: deleteProduct,
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
+    onSuccess: async () => {
+      toast.success("productDeleted");
+
+      await invalidateAll();
+    },
+
+    onError: (error) => {
+      toast.error(error, "deleteProduct");
     },
   });
 
@@ -274,21 +279,6 @@ export default function ProductsPage() {
         />
       </motion.div>
 
-      {/* Delete Error */}
-      {deleteProductMutation.isError && (
-        <motion.div variants={itemVariants}>
-          <div
-            className="border-s-4 border-s-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
-            role="alert"
-          >
-            {apiErrorMessage(
-              deleteProductMutation.error,
-              te,
-              te("deleteProduct"),
-            )}
-          </div>
-        </motion.div>
-      )}
 
       {/* Summary */}
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-3">

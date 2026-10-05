@@ -9,13 +9,15 @@ import {
   Pencil,
   Plus,
   Receipt,
+  Sparkles,
   Trash2,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import {
   keepPreviousData,
   useMutation,
   useQuery,
-  useQueryClient,
 } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,7 @@ import {
 } from "@/components/ui/select";
 
 import AdvertisingExpenseForm from "@/components/AdvertisingExpenseForm";
+import WindsorSyncDialog from "@/components/WindsorSyncDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
@@ -38,10 +41,15 @@ import PageHeader from "@/components/PageHeader";
 import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import {
   deleteAdvertisingExpense,
+  getAdInsights,
   getAdvertisingExpenses,
+  type AdInsights,
+  type AdVerdict,
   type AdvertisingExpense,
 } from "@/lib/api";
 
@@ -73,7 +81,11 @@ export default function AdvertisingPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AdvertisingExpense | null>(null);
 
-  const queryClient = useQueryClient();
+  /* 7/30 window, same default as the Reports page. */
+  /* Only the funnel (ads vs orders) is windowed; Windsor data is all-time. */
+  const [funnelRange, setFunnelRange] = useState<7 | 30>(30);
+  const [windsorOpen, setWindsorOpen] = useState(false);
+
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["advertising", page, filters.from, filters.to, filters.platform],
@@ -89,12 +101,32 @@ export default function AdvertisingPage() {
     placeholderData: keepPreviousData,
   });
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["advertising"] });
+  const {
+    data: insights,
+    isLoading: insightsLoading,
+    isError: insightsError,
+    error: insightsErrorDetail,
+    refetch: refetchInsights,
+  } = useQuery({
+    queryKey: ["adInsights", funnelRange],
+    queryFn: () => getAdInsights(funnelRange),
+  });
+
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
 
   const deleteMutation = useMutation({
     mutationFn: deleteAdvertisingExpense,
-    onSuccess: invalidate,
+
+    onSuccess: async () => {
+      toast.success("adDeleted");
+
+      await invalidateAll();
+    },
+
+    onError: (error) => {
+      toast.error(error, "deleteAdvertising");
+    },
   });
 
   const expenses = data?.expenses ?? [];
@@ -137,25 +169,30 @@ export default function AdvertisingPage() {
           title={t("title")}
           description={t("description")}
           actions={
-            <Button type="button" onClick={openCreate} className="w-full sm:w-auto">
-              <Plus className="size-4" />
-              {t("add")}
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setWindsorOpen(true)}
+                className="w-full sm:w-auto"
+              >
+                <Sparkles className="size-4" />
+                {t("windsor.sync")}
+              </Button>
+
+              <Button
+                type="button"
+                onClick={openCreate}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="size-4" />
+                {t("add")}
+              </Button>
+            </>
           }
         />
       </motion.div>
 
-      {/* Delete error */}
-      {deleteMutation.isError && (
-        <motion.div variants={itemVariants}>
-          <div
-            className="border-s-4 border-s-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
-            role="alert"
-          >
-            {apiErrorMessage(deleteMutation.error, te, te("deleteAdvertising"))}
-          </div>
-        </motion.div>
-      )}
 
       {/* Summary */}
       <motion.div
@@ -182,6 +219,49 @@ export default function AdvertisingPage() {
           icon={Megaphone}
           tone="default"
         />
+      </motion.div>
+
+      {/* Ad performance - the decision card */}
+      <motion.div variants={itemVariants}>
+        <Card className="rounded-lg border border-border shadow-none">
+          <CardHeader className="gap-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base font-semibold">
+                {t("performanceTitle")}
+              </CardTitle>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("performanceDescription")}
+              </p>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {t("allAvailableNote")}
+            </p>
+          </CardHeader>
+
+          <CardContent className="p-5">
+            {insightsLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {tc("loading")}
+              </p>
+            ) : insightsError || !insights ? (
+              <ErrorState
+                description={apiErrorMessage(
+                  insightsErrorDetail,
+                  te,
+                  te("fetchInsights"),
+                )}
+                onRetry={() => refetchInsights()}
+              />
+            ) : (
+              <AdPerformance
+                insights={insights}
+                onFunnelRangeChange={setFunnelRange}
+              />
+            )}
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Filters */}
@@ -368,8 +448,12 @@ export default function AdvertisingPage() {
                         {formatDate(expense.date, locale)}
                       </span>
 
-                      <span className="truncate text-sm font-medium">
-                        {expense.platform}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-medium">
+                          {expense.platform}
+                        </span>
+
+                        <SourceBadge source={expense.source} />
                       </span>
 
                       <span className="truncate text-sm text-muted-foreground">
@@ -418,9 +502,13 @@ export default function AdvertisingPage() {
                     <li key={expense._id} className="space-y-2 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">
-                            {expense.platform}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold">
+                              {expense.platform}
+                            </p>
+
+                            <SourceBadge source={expense.source} />
+                          </div>
 
                           <p className="text-xs text-muted-foreground">
                             {formatDate(expense.date, locale)}
@@ -488,9 +576,448 @@ export default function AdvertisingPage() {
         open={formOpen}
         expense={editing}
         onOpenChange={setFormOpen}
-        onSaved={invalidate}
+      />
+
+      <WindsorSyncDialog
+        open={windsorOpen}
+        onOpenChange={setWindsorOpen}
       />
     </motion.div>
+  );
+}
+
+/**
+ * Manual / Windsor origin. A missing `source` means the row predates the
+ * field, so it is manual.
+ */
+function SourceBadge({ source }: { source?: "manual" | "windsor" }) {
+  const t = useTranslations("advertising");
+  const isWindsor = source === "windsor";
+
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-sm border px-1.5 py-0.5 text-[0.65rem] font-medium",
+        isWindsor
+          ? "border-primary/40 text-primary"
+          : "border-border text-muted-foreground",
+      )}
+    >
+      {isWindsor ? t("source.windsor") : t("source.manual")}
+    </span>
+  );
+}
+
+/** null renders as "-", never "NaN" or "Infinity". */
+function nullableMoney(value: number | null, locale: "en" | "ar"): string {
+  return value === null ? "-" : formatCurrency(value, locale);
+}
+
+/** Store name for display. Only the two real stores exist. */
+function storeLabel(store: string): string {
+  if (store === "viora") return "Viora";
+  if (store === "trendora") return "Trendora";
+
+  return store;
+}
+
+/** null (no data / divide by zero) renders as an em dash, never NaN. */
+function Money({
+  value,
+  locale,
+}: {
+  value: number | null;
+  locale: "en" | "ar";
+}) {
+  return (
+    <span className="text-base font-semibold tabular-nums">
+      {nullableMoney(value, locale)}
+    </span>
+  );
+}
+
+function PerformanceMetric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="bg-card px-4 py-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+
+      <p className="mt-1">{value}</p>
+
+      {hint ? (
+        <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+const VERDICT_TONE: Record<
+  AdVerdict,
+  { border: string; text: string }
+> = {
+  scale: { border: "border-s-success", text: "text-success" },
+  watch: { border: "border-s-warning", text: "text-warning" },
+  losing: { border: "border-s-destructive", text: "text-destructive" },
+  noData: { border: "border-s-border", text: "text-muted-foreground" },
+};
+
+const VERDICT_ICON: Record<AdVerdict, typeof TrendingUp> = {
+  scale: TrendingUp,
+  watch: TrendingUp,
+  losing: TrendingDown,
+  noData: Megaphone,
+};
+
+/**
+ * Ad performance.
+ *
+ * Two separate blocks, because they answer different questions:
+ *
+ *  1. WINDSOR (all available data) - what the ads did across BOTH stores.
+ *     No 7/30 limit here; the period shown is the period Windsor returned.
+ *  2. FUNNEL (period-scoped) - ads vs delivered orders and profit, where
+ *     the message -> order rate is a PERIOD-LEVEL ratio, NOT attribution.
+ */
+function AdPerformance({
+  insights,
+  onFunnelRangeChange,
+}: {
+  insights: AdInsights;
+  onFunnelRangeChange: (value: 7 | 30) => void;
+}) {
+  const t = useTranslations("advertising");
+  const locale = useLocale() as "en" | "ar";
+
+  const { windsor, manual, total, funnel, campaigns } = insights;
+  const period =
+    insights.availablePeriod.from && insights.availablePeriod.to
+      ? `${insights.availablePeriod.from} → ${insights.availablePeriod.to}`
+      : null;
+
+  const tone = VERDICT_TONE[funnel.verdict];
+  const VerdictIcon = VERDICT_ICON[funnel.verdict];
+
+  return (
+    <div className="space-y-6">
+      {/* ---------- 1. Windsor, all available data ---------- */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm font-semibold">{t("windsorSection")}</p>
+
+          <p className="text-xs text-muted-foreground">
+            {period
+              ? t("availablePeriod", { period })
+              : t("noWindsorData")}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-4">
+          <PerformanceMetric
+            label={t("totalAdSpend")}
+            value={<Money value={total.adSpend} locale={locale} />}
+            hint={t("spendSplit", {
+              windsor: formatCurrency(windsor.spend, locale),
+              manual: formatCurrency(manual.spend, locale),
+            })}
+          />
+
+          <PerformanceMetric
+            label={t("windsorSource")}
+            value={<Money value={windsor.sourceSpend} locale={locale} />}
+            hint={t("convertedAt", {
+              currency: insights.sourceCurrency,
+              rate: insights.rate,
+            })}
+          />
+
+          <PerformanceMetric
+            label={t("messages")}
+            value={
+              <span className="text-base font-semibold tabular-nums">
+                {formatNumber(windsor.messages, locale)}
+              </span>
+            }
+            hint={t("clicksHint", {
+              clicks: formatNumber(windsor.clicks, locale),
+            })}
+          />
+
+          <PerformanceMetric
+            label={t("costPerMessage")}
+            value={<Money value={total.costPerMessage} locale={locale} />}
+            hint={t("costPerMessageHint", {
+              spend: formatCurrency(total.adSpend, locale),
+            })}
+          />
+        </div>
+
+        {/* Source / ad-account breakdown */}
+        {insights.connections.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-semibold">{t("sourcesTitle")}</p>
+
+            <div className="grid grid-cols-[minmax(120px,1.4fr)_minmax(100px,1fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(80px,1fr)] items-center gap-3 border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span>{t("source")}</span>
+              <span className="text-end">{t("spend")}</span>
+              <span className="text-end">{t("messages")}</span>
+              <span className="text-end">{t("clicks")}</span>
+              <span className="text-end">{t("costPerMessage")}</span>
+            </div>
+
+            {insights.connections.map((conn) => (
+              <ConnectionGroup key={conn.id} connection={conn} insights={insights} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ---------- 2. Period funnel ---------- */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm font-semibold">{t("funnelTitle")}</p>
+
+          <div
+            className="inline-flex rounded-md border border-border p-0.5"
+            role="group"
+            aria-label={t("funnelTitle")}
+          >
+            {([7, 30] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onFunnelRangeChange(value)}
+                aria-pressed={funnel.range === value}
+                className={cn(
+                  "rounded-sm px-3 py-1 text-xs font-medium transition-colors",
+                  funnel.range === value
+                    ? "bg-secondary text-secondary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t("days", { count: value })}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-4">
+          <PerformanceMetric
+            label={t("spend")}
+            value={<Money value={funnel.adSpend} locale={locale} />}
+            hint={t("spendSplit", {
+              windsor: formatCurrency(funnel.windsorSpend, locale),
+              manual: formatCurrency(funnel.manualSpend, locale),
+            })}
+          />
+
+          <PerformanceMetric
+            label={t("deliveredOrders")}
+            value={
+              <span className="text-base font-semibold tabular-nums">
+                {formatNumber(funnel.deliveredOrders, locale)}
+              </span>
+            }
+            hint={t("costPerOrder", {
+              amount: nullableMoney(funnel.costPerOrder, locale),
+            })}
+          />
+
+          <PerformanceMetric
+            label={t("messageToOrder")}
+            value={<Money value={funnel.messageToOrderRate} locale={locale} />}
+            hint={t("messageToOrderHint", {
+              messages: formatNumber(funnel.messages, locale),
+              orders: formatNumber(funnel.deliveredOrders, locale),
+            })}
+          />
+
+          <PerformanceMetric
+            label={t("profitPerOrder")}
+            value={
+              <Money value={funnel.profitPerOrderBeforeAds} locale={locale} />
+            }
+            hint={t("breakEvenMessage", {
+              amount: nullableMoney(funnel.breakEvenCostPerMessage, locale),
+            })}
+          />
+        </div>
+
+        {/* Verdict + the single next step */}
+        <div className={cn("border-s-4 ps-4 pe-4 py-3", tone.border)}>
+          <p
+            className={cn(
+              "flex items-center gap-2 text-sm font-semibold",
+              tone.text,
+            )}
+          >
+            <VerdictIcon className="size-4 shrink-0" />
+            {t(`verdict.${funnel.verdict}`)}
+          </p>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t(`verdictNext.${funnel.verdict}`)}
+          </p>
+
+          {funnel.verdict === "noData" && funnel.verdictReason && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(`verdictReason.${funnel.verdictReason}`)}
+            </p>
+          )}
+        </div>
+
+        <p className="text-xs text-muted-foreground">{t("profitBasisNote")}</p>
+
+        <p className="text-xs text-muted-foreground">
+          {t("currencyBasisNote", {
+            rate: insights.rate,
+            currency: insights.sourceCurrency,
+          })}
+        </p>
+
+        <p className="text-xs text-muted-foreground">{t("noAttributionNote")}</p>
+      </section>
+
+      {/* ---------- Campaigns ---------- */}
+      {campaigns.length > 0 && (
+        <section>
+          <p className="mb-2 text-sm font-semibold">{t("campaigns")}</p>
+
+          <div className="grid grid-cols-[minmax(140px,2fr)_minmax(110px,1.4fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(70px,1fr)_minmax(90px,1fr)] items-center gap-3 border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span>{t("campaign")}</span>
+            <span>{t("source")}</span>
+            <span className="text-end">{t("spend")}</span>
+            <span className="text-end">{t("messages")}</span>
+            <span className="text-end">{t("clicks")}</span>
+            <span className="text-end">{t("costPerMessage")}</span>
+          </div>
+
+          {campaigns.map((campaign) => (
+            <div
+              key={`${campaign.store}|${campaign.accountId}|${campaign.campaign}`}
+              className={cn(
+                "grid grid-cols-[minmax(140px,2fr)_minmax(110px,1.4fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(70px,1fr)_minmax(90px,1fr)] items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0",
+                campaign.flagged && "bg-surface",
+              )}
+            >
+              <span className="truncate text-sm" title={campaign.campaign}>
+                {campaign.campaign}
+              </span>
+
+              <span
+                className="truncate text-xs text-muted-foreground"
+                title={campaign.accountName}
+              >
+                {storeLabel(campaign.store)} ·{" "}
+                {campaign.accountName || campaign.accountId}
+              </span>
+
+              <span className="text-end text-sm tabular-nums">
+                {formatCurrency(campaign.spend, locale)}
+              </span>
+
+              <span className="text-end text-sm tabular-nums">
+                {formatNumber(campaign.messages, locale)}
+              </span>
+
+              <span className="text-end text-sm tabular-nums">
+                {formatNumber(campaign.clicks, locale)}
+              </span>
+
+              <span
+                className={cn(
+                  "text-end text-sm font-medium tabular-nums",
+                  campaign.flagged ? "text-destructive" : "text-text",
+                )}
+              >
+                {campaign.costPerMessage === null
+                  ? "-"
+                  : formatCurrency(campaign.costPerMessage, locale)}
+              </span>
+            </div>
+          ))}
+
+          {campaigns.some((c) => c.flagged) && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t("campaignFlagged")}
+            </p>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+/** All ad accounts belonging to one Windsor connection. */
+function ConnectionGroup({
+  connection,
+  insights,
+}: {
+  connection: AdInsights["connections"][number];
+  insights: AdInsights;
+}) {
+  const t = useTranslations("advertising");
+  const locale = useLocale() as "en" | "ar";
+
+  const sources = insights.sources.filter(
+    (s) => s.connectionId === connection.id,
+  );
+
+  if (sources.length === 0) return null;
+
+  return (
+    <>
+      <p className="bg-card px-3 py-2 text-xs font-semibold text-muted-foreground">
+        {connection.label}
+      </p>
+
+      {sources.map((source) => (
+        <div
+          key={`${source.connectionId}|${source.accountId}`}
+          className="grid grid-cols-[minmax(120px,1.4fr)_minmax(100px,1fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(80px,1fr)] items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-sm">
+              {source.accountName || source.accountId}
+            </span>
+
+            {source.from ? (
+              <span className="block text-xs text-muted-foreground">
+                {t("availablePeriod", {
+                  period: `${source.from} → ${source.to}`,
+                })}
+              </span>
+            ) : null}
+          </span>
+
+          <span className="text-end text-sm font-medium tabular-nums">
+            {formatCurrency(source.spend, locale)}
+          </span>
+
+          <span className="text-end text-sm tabular-nums">
+            {formatNumber(source.messages, locale)}
+          </span>
+
+          <span className="text-end text-sm tabular-nums">
+            {formatNumber(source.clicks, locale)}
+          </span>
+
+          <span className="text-end text-sm tabular-nums">
+            {source.costPerMessage === null
+              ? "-"
+              : formatCurrency(source.costPerMessage, locale)}
+          </span>
+        </div>
+      ))}
+    </>
   );
 }
 

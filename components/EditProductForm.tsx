@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, ImagePlus, Package, Save, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,8 @@ import { Product, updateProduct } from "@/lib/api";
 import { uploadProductImage } from "@/lib/cloudinary";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { isKnownCategory } from "@/lib/categories";
-import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 import Image from "next/image";
 
 type FormErrors = {
@@ -41,13 +42,13 @@ export default function EditProductForm({ product }: EditProductFormProps) {
   const t = useTranslations("products");
   const tv = useTranslations("products.validation");
   const tc = useTranslations("common");
-  const te = useTranslations("errors");
   const locale = useLocale() as "en" | "ar";
 
   const categoryLabel = (value: string) =>
     isKnownCategory(value) ? t(`categories.${value}`) : value;
 
-  const queryClient = useQueryClient();
+  const invalidateAll = useInvalidateAll();
+  const toast = useAppToast();
   const router = useRouter();
 
   const [name, setName] = useState(product.name);
@@ -103,16 +104,16 @@ export default function EditProductForm({ product }: EditProductFormProps) {
       });
     },
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["products"],
-      });
+    onSuccess: async () => {
+      toast.success("productUpdated");
 
-      queryClient.invalidateQueries({
-        queryKey: ["product", product._id],
-      });
+      await invalidateAll();
 
       router.push("/products");
+    },
+
+    onError: (error) => {
+      toast.error(error, "updateProduct");
     },
   });
 
@@ -490,19 +491,6 @@ export default function EditProductForm({ product }: EditProductFormProps) {
           </CardContent>
         </Card>
 
-        {/* Error */}
-        {updateProductMutation.isError && (
-          <div
-            className="border-s-4 border-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
-            role="alert"
-          >
-            {apiErrorMessage(
-              updateProductMutation.error,
-              te,
-              te("updateProduct"),
-            )}
-          </div>
-        )}
 
         {/* Actions */}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

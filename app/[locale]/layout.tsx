@@ -11,6 +11,7 @@ import {
 import "../globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import QueryProvider from "@/components/QueryProvider";
+import AppToaster from "@/components/AppToaster";
 import { routing } from "@/i18n/routing";
 
 const inter = Inter({
@@ -69,7 +70,15 @@ export default async function LocaleLayout({
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
-            <QueryProvider>{children}</QueryProvider>
+            <QueryProvider>
+              {/* Single toaster for the whole app. Must live inside
+                  ThemeProvider so it inherits the active theme's CSS
+                  variables, and inside NextIntlClientProvider so it can
+                  read the locale for RTL. */}
+              <AppToaster />
+
+              {children}
+            </QueryProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

@@ -21,7 +21,8 @@ import {
   updateAdvertisingExpense,
   type AdvertisingExpense,
 } from "@/lib/api";
-import { apiErrorMessage } from "@/lib/errors";
+import { useAppToast } from "@/lib/toast";
+import { useInvalidateAll } from "@/lib/queries";
 
 const SUGGESTED_PLATFORMS = ["Meta", "Facebook", "Instagram", "TikTok"] as const;
 
@@ -56,17 +57,16 @@ function expenseToDateInput(value: string): string {
 function ExpenseFields({
   expense,
   onDone,
-  onSaved,
 }: {
   /** Null means "create a new expense". */
   expense: AdvertisingExpense | null;
   onDone: () => void;
-  onSaved: () => void;
 }) {
   const t = useTranslations("advertising");
   const tv = useTranslations("advertising.validation");
   const tc = useTranslations("common");
-  const te = useTranslations("errors");
+  const toast = useAppToast();
+  const invalidateAll = useInvalidateAll();
 
   const [date, setDate] = useState(() =>
     expense ? expenseToDateInput(expense.date) : todayIsoDate(),
@@ -93,9 +93,19 @@ function ExpenseFields({
         ? updateAdvertisingExpense(expense._id, payload)
         : createAdvertisingExpense(payload);
     },
-    onSuccess: () => {
-      onSaved();
+    onSuccess: async () => {
+      toast.success(expense ? "adUpdated" : "adCreated");
+
+      await invalidateAll();
+
       onDone();
+    },
+
+    onError: (error) => {
+      toast.error(
+        error,
+        expense ? "updateAdvertising" : "createAdvertising",
+      );
     },
   });
 
@@ -215,18 +225,6 @@ function ExpenseFields({
         />
       </div>
 
-      {mutation.isError && (
-        <div
-          className="border-s-4 border-destructive bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
-          role="alert"
-        >
-          {apiErrorMessage(
-            mutation.error,
-            te,
-            te(expense ? "updateAdvertising" : "createAdvertising"),
-          )}
-        </div>
-      )}
 
       <DialogFooter className="gap-2 sm:justify-end">
         <Button
@@ -256,13 +254,11 @@ export default function AdvertisingExpenseForm({
   open,
   expense,
   onOpenChange,
-  onSaved,
 }: {
   open: boolean;
   /** Null means "create a new expense". */
   expense: AdvertisingExpense | null;
   onOpenChange: (open: boolean) => void;
-  onSaved: () => void;
 }) {
   const t = useTranslations("advertising");
 
@@ -281,7 +277,6 @@ export default function AdvertisingExpenseForm({
           key={expense?._id ?? "new"}
           expense={expense}
           onDone={() => onOpenChange(false)}
-          onSaved={onSaved}
         />
       </DialogContent>
     </Dialog>
