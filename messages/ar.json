@@ -460,7 +460,9 @@
   "pagination": {
     "pageOf": "الصفحة {current} من {total}",
     "previous": "السابق",
-    "next": "التالي"
+    "next": "التالي",
+    "first": "الأول",
+    "last": "الأخير"
   },
   "advertising": {
     "title": "الإعلانات",
@@ -577,6 +579,34 @@
       "noDataForAccount": "لا توجد بيانات لهذا الحساب"
     },
     "messagesAndClicks": "{messages} رسالة · {clicks} نقرة",
+    "accounts": {
+      "viora": "Viora",
+      "trendora_facebook": "Trendora — فيسبوك",
+      "trendora_instagram": "Trendora — إنستغرام",
+      "trendora_other": "Trendora — أخرى"
+    },
+    "stores": {
+      "viora": "Viora",
+      "trendora": "Trendora"
+    },
+    "noCampaigns": "لا توجد حملات بعد",
+    "cpmShort": "تكلفة/رسالة",
+    "grandBreakdown": "{label} {amount}",
+    "manualTitle": "مصاريف إعلانية يدوية",
+    "manualDescription": "مصاريف أضفتها بنفسك. منفصلة عن ويندور ومشمولة في الإجمالي العام.",
+    "manualTotal": "إجمالي المصاريف اليدوية",
+    "manualCount": "{count, plural, one {إدخال #} other {# إدخالات}}",
+    "manualEmpty": "لا توجد مصاريف يدوية بعد",
+    "manualEmptyDescription": "أضف مصروفاً لتتبع إنفاق غير موجود في ويندور.",
+    "manualEntry": "{platform} · {date}",
+    "summaryNote": "كل البيانات المتاحة. ويندور + يدوي، تُحسب مرة واحدة.",
+    "searchPlaceholder": "ابحث في الحملات والمنصات والملاحظات...",
+    "storeLabel": "المتجر",
+    "accountLabel": "الحساب",
+    "allStores": "كل المتاجر",
+    "allAccounts": "كل الحسابات",
+    "listDescription": "كل سجلات المصاريف الإعلانية، من الأحدث أولاً.",
+    "showingManualOnly": "تُعرض الإدخالات اليدوية فقط.",
     "windsorSpendUsd": "إنفاق ويندور",
     "windsorSpendAed": "{amount} {currency} كما ورد",
     "noWindsorData": "لا توجد بيانات ويندور مزامنة بعد",

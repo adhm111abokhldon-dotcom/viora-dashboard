@@ -460,7 +460,9 @@
   "pagination": {
     "pageOf": "Page {current} of {total}",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "first": "First",
+    "last": "Last"
   },
   "advertising": {
     "title": "Advertising",
@@ -577,6 +579,34 @@
       "noDataForAccount": "No data for this account"
     },
     "messagesAndClicks": "{messages} messages · {clicks} clicks",
+    "accounts": {
+      "viora": "Viora",
+      "trendora_facebook": "Trendora — Facebook",
+      "trendora_instagram": "Trendora — Instagram",
+      "trendora_other": "Trendora — Other"
+    },
+    "stores": {
+      "viora": "Viora",
+      "trendora": "Trendora"
+    },
+    "noCampaigns": "No campaigns yet",
+    "cpmShort": "Cost/msg",
+    "grandBreakdown": "{label} {amount}",
+    "manualTitle": "Manual advertising expenses",
+    "manualDescription": "Expenses you added yourself. They are separate from Windsor and included in the grand total.",
+    "manualTotal": "Total manual spend",
+    "manualCount": "{count, plural, one {# entry} other {# entries}}",
+    "manualEmpty": "No manual expenses yet",
+    "manualEmptyDescription": "Add an expense to track spend that is not in Windsor.",
+    "manualEntry": "{platform} · {date}",
+    "summaryNote": "All available data. Windsor + manual, counted once.",
+    "searchPlaceholder": "Search campaigns, platforms, notes...",
+    "storeLabel": "Store",
+    "accountLabel": "Account",
+    "allStores": "All stores",
+    "allAccounts": "All accounts",
+    "listDescription": "Every advertising expense record, newest first.",
+    "showingManualOnly": "Showing manual entries only.",
     "windsorSpendUsd": "Windsor spend",
     "windsorSpendAed": "{amount} {currency} reported",
     "noWindsorData": "No Windsor data synced yet",

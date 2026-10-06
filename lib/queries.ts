@@ -17,7 +17,8 @@ import { useQueryClient } from "@tanstack/react-query";
  *   ["productStats", id, trendDays]           -> ["productStats"]
  *   ["reports", range]                        -> ["reports"]
  *   ["dashboard"]                             -> ["dashboard"]
- *   ["advertising", page, from, to, platform] -> ["advertising"]
+ *   ["advertising", page, filters]            -> ["advertising"]
+ *   ["adSummary"]                             -> ["adSummary"]
  *
  * NOTE: "order" and "product" are listed separately on purpose - they are
  * distinct array roots, so invalidating ["order"] does NOT cover ["orders"]
@@ -31,10 +32,10 @@ export const BUSINESS_QUERY_ROOTS = [
   "productStats",
   "reports",
   "dashboard",
+  // The paginated advertising records (manual expenses + filters).
   "advertising",
-  // The Ad-performance card. Without this the card kept showing pre-sync
-  // numbers for up to staleTime after a Windsor sync.
-  "adInsights",
+  // The all-time Advertising summary (grand total + account cards).
+  "adSummary",
 ] as const;
 
 /**

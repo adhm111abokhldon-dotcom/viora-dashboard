@@ -287,19 +287,27 @@ export type AdvertisingResponse = {
     hasPreviousPage: boolean;
   };
   summary: {
+    /** Totals over the FULL filtered set - independent of the current page. */
     totalSpend: number;
     expenseCount: number;
     averageExpense: number;
-    byPlatform: Array<{ platform: string; total: number; count: number }>;
   };
 };
 
 export async function getAdvertisingExpenses(params: {
   page: number;
   limit: number;
+  /** USER-CONTROLLED date filter: omitted = all available data. */
   from?: string;
   to?: string;
   platform?: string;
+  /** Omit for every record; "manual" keeps the list manual-only. */
+  source?: "manual" | "windsor";
+  store?: AdStore;
+  /** Business account key, resolved server-side (see lib/adAccounts.ts). */
+  account?: AdAccountKey;
+  /** Matches campaign, platform or note - never interpreted as a regex. */
+  search?: string;
 }): Promise<AdvertisingResponse> {
   const query = new URLSearchParams({
     page: String(params.page),
@@ -309,11 +317,15 @@ export async function getAdvertisingExpenses(params: {
   if (params.from) query.set("from", params.from);
   if (params.to) query.set("to", params.to);
   if (params.platform) query.set("platform", params.platform);
+  if (params.source) query.set("source", params.source);
+  if (params.store) query.set("store", params.store);
+  if (params.account) query.set("account", params.account);
+  if (params.search) query.set("search", params.search);
 
   const response = await fetch(`${API_URL}/advertising?${query}`);
 
   if (!response.ok) {
-    throw new Error("Failed to fetch advertising expenses");
+    throw new Error(await errorMessage(response, "Failed to fetch advertising expenses"));
   }
 
   return response.json();
@@ -367,27 +379,38 @@ export async function deleteAdvertisingExpense(expenseId: string): Promise<void>
 }
 
 /* -------------------------------------------------------------------------- */
-/* Windsor sync + insights                                                     */
+/* Windsor sync + advertising summary                                          */
 /* -------------------------------------------------------------------------- */
-
-export type AdVerdict = "scale" | "watch" | "losing" | "noData";
 
 export type AdStore = "viora" | "trendora";
 
-/** One Windsor ad account inside a connection. A connection may hold several. */
+/**
+ * Business account keys - the ONLY account identities the UI renders.
+ * Mirrors backend/src/lib/adAccounts.ts.
+ */
+export type AdAccountKey =
+  | "viora"
+  | "trendora_facebook"
+  | "trendora_instagram"
+  /** Fallback bucket for a Trendora ad account the backend cannot map. */
+  | "trendora_other";
+
+/** One Windsor ad account discovered during preview / sync. */
 export type AdSource = {
   store: AdStore;
   connectionId: string;
   connectionLabel: string;
+  /** Business account resolved by the backend - the UI labels by THIS. */
+  accountKey: AdAccountKey;
   accountId: string;
   accountName: string;
   /** Period actually returned by Windsor for this account. */
   from: string | null;
   to: string | null;
   rowCount: number;
-  /** AED as Windsor reported it. */
+  /** Amount as Windsor reported it, before conversion. */
   sourceSpend: number;
-  /** USD after the fixed conversion. */
+  /** Normalized amount (USD) - what gets stored and displayed. */
   spend: number;
   messages: number;
   clicks: number;
@@ -396,92 +419,44 @@ export type AdSource = {
   empty?: boolean;
 };
 
+/** One campaign, aggregated over ALL stored days. */
 export type AdCampaign = {
-  store: string;
-  accountId: string;
-  accountName: string;
   campaign: string;
   spend: number;
-  sourceSpend: number;
   messages: number;
   clicks: number;
   costPerMessage: number | null;
-  flagged: boolean;
 };
 
-export type AdInsights = {
-  /** Fixed rate label, e.g. "3.67 AED / USD". */
-  rate: string;
-  sourceCurrency: string;
-  /** Period Windsor actually has data for. */
-  availablePeriod: { from: string | null; to: string | null };
-  connections: Array<{
-    id: string;
-    store: string;
-    label: string;
-    configured: boolean;
-  }>;
-
-  /** Per-store / per-ad-account breakdown of stored Windsor rows. */
-  sources: Array<{
-    store: string;
-    connectionId: string;
-    connectionLabel: string;
-    accountId: string;
-    accountName: string;
-    from: string | null;
-    to: string | null;
-    rowCount: number;
-    sourceSpend: number;
-    spend: number;
-    messages: number;
-    clicks: number;
-    costPerMessage: number | null;
-  }>;
-
-  /** ALL available Windsor data - no artificial 7/30 limit. */
-  windsor: {
-    spend: number;
-    sourceSpend: number;
-    messages: number;
-    clicks: number;
-    costPerMessage: number | null;
-  };
-
-  /** ALL manual expenses, already USD. */
-  manual: { spend: number; count: number };
-
-  /** The single advertising pool: Windsor USD + Manual USD. */
-  total: { adSpend: number; costPerMessage: number | null };
-
-  /** Period-scoped order/profit funnel. `range` only affects this block. */
-  funnel: {
-    range: number;
-    adSpend: number;
-    windsorSpend: number;
-    manualSpend: number;
-    messages: number;
-    clicks: number;
-    costPerMessage: number | null;
-    deliveredOrders: number;
-    profitBeforeAds: number;
-    costPerOrder: number | null;
-    profitPerOrderBeforeAds: number | null;
-    messageToOrderRate: number | null;
-    breakEvenCostPerOrder: number | null;
-    breakEvenCostPerMessage: number | null;
-    verdict: AdVerdict;
-    verdictReason: string;
-  };
-
+/** One business advertising account with its all-time totals. */
+export type AdAccountSummary = {
+  key: AdAccountKey;
+  spend: number;
+  messages: number;
+  clicks: number;
+  costPerMessage: number | null;
+  campaignCount: number;
+  /** Highest spend first; fully deterministic order. */
   campaigns: AdCampaign[];
 };
 
-export async function getAdInsights(range: 7 | 30): Promise<AdInsights> {
-  const response = await fetch(`${API_URL}/advertising/insights?range=${range}`);
+/**
+ * GET /advertising/insights - the ALL-TIME business summary.
+ * There is deliberately no date window: everything covers all available data.
+ */
+export type AdSummary = {
+  /** Windsor (every account) + manual, counted exactly once each. */
+  grandTotal: number;
+  manual: { spend: number; count: number };
+  /** Fixed order: viora, trendora_facebook, trendora_instagram (+ fallback). */
+  accounts: AdAccountSummary[];
+};
+
+export async function getAdSummary(): Promise<AdSummary> {
+  const response = await fetch(`${API_URL}/advertising/insights`);
 
   if (!response.ok) {
-    throw new Error(await errorMessage(response, "Failed to fetch insights"));
+    throw new Error(await errorMessage(response, "Failed to fetch ad summary"));
   }
 
   return response.json();

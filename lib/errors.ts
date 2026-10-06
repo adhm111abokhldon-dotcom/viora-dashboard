@@ -19,6 +19,13 @@ const API_ERROR_KEYS: Record<string, string> = {
   "Failed to update order": "updateOrder",
   "Failed to fetch reports": "fetchReports",
   "Failed to fetch dashboard": "fetchDashboard",
+  "Failed to fetch advertising expenses": "fetchAdvertising",
+  "Failed to fetch ad summary": "fetchInsights",
+  "Failed to create advertising expense": "createAdvertising",
+  "Failed to update advertising expense": "updateAdvertising",
+  "Failed to delete advertising expense": "deleteAdvertising",
+  "Failed to preview Windsor data": "previewWindsor",
+  "Failed to sync from Windsor": "syncWindsor",
 };
 
 export function apiErrorMessage(

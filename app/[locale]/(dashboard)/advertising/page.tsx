@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import {
-  Banknote,
   Megaphone,
   Pencil,
   Plus,
-  Receipt,
-  Sparkles,
+  RefreshCw,
+  Search,
   Trash2,
-  TrendingDown,
-  TrendingUp,
 } from "lucide-react";
 import {
   keepPreviousData,
@@ -23,168 +20,179 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-import AdvertisingExpenseForm from "@/components/AdvertisingExpenseForm";
-import WindsorSyncDialog from "@/components/WindsorSyncDialog";
+import {
+  deleteAdvertisingExpense,
+  getAdSummary,
+  getAdvertisingExpenses,
+  type AdAccountSummary,
+  type AdvertisingExpense,
+} from "@/lib/api";
 import { Pagination } from "@/components/ui/Pagination";
+import ProductsLoading from "@/components/ProductsLoading";
+import PageHeader from "@/components/PageHeader";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
-import PageHeader from "@/components/PageHeader";
+import AdvertisingAccountCard from "@/components/AdvertisingAccountCard";
+import AdvertisingExpenseForm from "@/components/AdvertisingExpenseForm";
+import WindsorSyncDialog from "@/components/WindsorSyncDialog";
 import { containerVariants, itemVariants } from "@/lib/motion";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import { useAppToast } from "@/lib/toast";
 import { useInvalidateAll } from "@/lib/queries";
-import { cn } from "@/lib/utils";
-import {
-  deleteAdvertisingExpense,
-  getAdInsights,
-  getAdvertisingExpenses,
-  type AdInsights,
-  type AdVerdict,
-  type AdvertisingExpense,
-} from "@/lib/api";
-
-const ALL_PLATFORMS = "all";
 const PAGE_SIZE = 10;
 
-/** Platforms offered as suggestions; any other value can be typed in. */
-const SUGGESTED_PLATFORMS = ["Meta", "Facebook", "Instagram", "TikTok"] as const;
-
-const EMPTY_FILTERS = { from: "", to: "", platform: ALL_PLATFORMS };
-
 /**
- * Advertising Expenses.
+ * Business-oriented Advertising overview.
  *
- * Ad spend is a standalone business expense: there is no attribution between
- * an ad and an order, so it is never mixed into product or order figures. It
- * only meets sales at the "Net Profit After Ads" line on the Reports page.
+ * Data model:
+ *   - `adSummary` (GET /advertising/insights) owns every headline number:
+ *     the grand total, each business account (Viora / Trendora - Facebook /
+ *     Trendora - Instagram) and the manual break-out. It always covers ALL
+ *     available data - there are no date windows and page-2 never changes it.
+ *   - the expense list (GET /advertising) owns the detailed records only:
+ *     manual entries plus Windsor rows, newest first, user-controlled
+ *     filters + server-side pagination.
  */
 export default function AdvertisingPage() {
   const t = useTranslations("advertising");
-  const tc = useTranslations("common");
   const te = useTranslations("errors");
+  const tc = useTranslations("common");
   const locale = useLocale() as "en" | "ar";
 
+  const toast = useAppToast();
+  const invalidateAll = useInvalidateAll();
+
   const [page, setPage] = useState(1);
-  const [draft, setDraft] = useState(EMPTY_FILTERS);
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-
-  const [formOpen, setFormOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [showSync, setShowSync] = useState(false);
   const [editing, setEditing] = useState<AdvertisingExpense | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] =
+    useState<AdvertisingExpense | null>(null);
 
-  /* 7/30 window, same default as the Reports page. */
-  /* Only the funnel (ads vs orders) is windowed; Windsor data is all-time. */
-  const [funnelRange, setFunnelRange] = useState<7 | 30>(30);
-  const [windsorOpen, setWindsorOpen] = useState(false);
+  // Debounced search: every keystroke resets to page 1 only once settled.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 400);
 
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["advertising", page, filters.from, filters.to, filters.platform],
+  const summaryQuery = useQuery({
+    queryKey: ["adSummary"],
+    queryFn: () => getAdSummary(),
+    placeholderData: keepPreviousData,
+  });
+
+  const listQuery = useQuery({
+    // Manual records only: the API pins source=manual, so Windsor rows can
+    // never leak into this table and a sync can never disturb it.
+    queryKey: ["advertising", "manual", page, PAGE_SIZE, search],
     queryFn: () =>
       getAdvertisingExpenses({
         page,
         limit: PAGE_SIZE,
-        from: filters.from || undefined,
-        to: filters.to || undefined,
-        platform:
-          filters.platform === ALL_PLATFORMS ? undefined : filters.platform,
+        source: "manual",
+        search: search || undefined,
       }),
     placeholderData: keepPreviousData,
   });
 
-  const {
-    data: insights,
-    isLoading: insightsLoading,
-    isError: insightsError,
-    error: insightsErrorDetail,
-    refetch: refetchInsights,
-  } = useQuery({
-    queryKey: ["adInsights", funnelRange],
-    queryFn: () => getAdInsights(funnelRange),
-  });
-
-  const invalidateAll = useInvalidateAll();
-  const toast = useAppToast();
-
   const deleteMutation = useMutation({
-    mutationFn: deleteAdvertisingExpense,
-
+    mutationFn: (expenseId: string) => deleteAdvertisingExpense(expenseId),
     onSuccess: async () => {
       toast.success("adDeleted");
-
+      setExpenseToDelete(null);
       await invalidateAll();
+      // The row we removed may have been the only one on this page.
+      // Step back so the list never sits on an empty page.
+      const total = listQuery.data?.pagination.totalExpenses;
+      if (typeof total === "number") {
+        const lastPage = Math.max(1, Math.ceil((total - 1) / PAGE_SIZE));
+        setPage((current) => Math.min(current, lastPage));
+      }
     },
-
     onError: (error) => {
       toast.error(error, "deleteAdvertising");
     },
   });
 
-  const expenses = data?.expenses ?? [];
-  const pagination = data?.pagination;
-  const summary = data?.summary;
+  const summary = summaryQuery.data;
+  const expenses = useMemo(() => listQuery.data?.expenses ?? [], [listQuery.data]);
+  const pagination = listQuery.data?.pagination;
+  const hasFilters = search !== "";
 
-  const hasFilters =
-    filters.from !== "" || filters.to !== "" || filters.platform !== ALL_PLATFORMS;
+  function clearFilters() {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+  }
 
   function openCreate() {
     setEditing(null);
-    setFormOpen(true);
+    setShowForm(true);
   }
 
   function openEdit(expense: AdvertisingExpense) {
     setEditing(expense);
-    setFormOpen(true);
+    setShowForm(true);
   }
 
-  function handleDelete(expense: AdvertisingExpense) {
-    const confirmed = window.confirm(
-      t("deleteConfirm", { amount: formatCurrency(expense.amount, locale) }),
+  if (summaryQuery.isLoading) {
+    return <ProductsLoading />;
+  }
+
+  if (summaryQuery.isError) {
+    return (
+      <div className="mx-auto w-full max-w-400 space-y-6">
+        <PageHeader title={t("title")} description={t("description")} />
+        <ErrorState
+          description={apiErrorMessage(summaryQuery.error, te, te("fetchInsights"))}
+          onRetry={() => summaryQuery.refetch()}
+        />
+      </div>
     );
-
-    if (confirmed) {
-      deleteMutation.mutate(expense._id);
-    }
   }
+
+  const accounts: AdAccountSummary[] = summary?.accounts ?? [];
+  const manualSpend = summary?.manual.spend ?? 0;
+  const manualCount = summary?.manual.count ?? 0;
+  const grandTotal = summary?.grandTotal ?? 0;
+
+  // Headline numbers always come from the summary (ALL data); this list
+  // holds only the current page of manual records.
 
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="mx-auto w-full max-w-400 space-y-7"
+      className="mx-auto w-full max-w-400 space-y-6"
     >
-      {/* Header */}
       <motion.div variants={itemVariants}>
         <PageHeader
           title={t("title")}
           description={t("description")}
           actions={
             <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setWindsorOpen(true)}
-                className="w-full sm:w-auto"
-              >
-                <Sparkles className="size-4" />
+              <Button variant="outline" onClick={() => setShowSync(true)}>
+                <RefreshCw className="size-4" />
                 {t("windsor.sync")}
               </Button>
-
-              <Button
-                type="button"
-                onClick={openCreate}
-                className="w-full sm:w-auto"
-              >
+              <Button onClick={openCreate}>
                 <Plus className="size-4" />
                 {t("add")}
               </Button>
@@ -193,865 +201,281 @@ export default function AdvertisingPage() {
         />
       </motion.div>
 
-
-      {/* Summary */}
-      <motion.div
-        variants={itemVariants}
-        className="grid gap-4 sm:grid-cols-3"
-      >
-        <SummaryTile
-          label={t("totalSpend")}
-          value={formatCurrency(summary?.totalSpend ?? 0, locale)}
-          icon={Banknote}
-          tone="primary"
-        />
-
-        <SummaryTile
-          label={t("expenseCount")}
-          value={formatNumber(summary?.expenseCount ?? 0, locale)}
-          icon={Receipt}
-          tone="default"
-        />
-
-        <SummaryTile
-          label={t("averageExpense")}
-          value={formatCurrency(summary?.averageExpense ?? 0, locale)}
-          icon={Megaphone}
-          tone="default"
-        />
-      </motion.div>
-
-      {/* Ad performance - the decision card */}
       <motion.div variants={itemVariants}>
-        <Card className="rounded-lg border border-border shadow-none">
-          <CardHeader className="gap-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+        <Card className="shadow-none">
+          <CardContent className="space-y-4 p-5 sm:p-6">
             <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                {t("totalAdSpend")}
+              </p>
+              <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">
+                {formatCurrency(grandTotal, locale)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("summaryNote")}
+              </p>
+            </div>
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-4">
+              {accounts.map((account) => (
+                <div key={account.key} className="bg-card px-4 py-3">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(`accounts.${account.key}`)}
+                  </dt>
+                  <dd className="mt-1 text-base font-semibold tabular-nums">
+                    {formatCurrency(account.spend, locale)}
+                  </dd>
+                </div>
+              ))}
+              <div className="bg-card px-4 py-3">
+                <dt className="text-xs text-muted-foreground">
+                  {t("manualTitle")}
+                </dt>
+                <dd className="mt-1 text-base font-semibold tabular-nums">
+                  {formatCurrency(manualSpend, locale)}
+                </dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t("sourcesTitle")}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {t("allAvailableNote")}
+          </p>
+        </div>
+      </motion.div>
+
+      {accounts.length === 0 && manualCount === 0 ? (
+        <motion.div variants={itemVariants}>
+          <Card className="shadow-none">
+            <EmptyState
+              icon={Megaphone}
+              title={t("empty")}
+              description={t("emptyDescription")}
+              action={<Button onClick={openCreate}>{t("add")}</Button>}
+            />
+          </Card>
+        </motion.div>
+      ) : (
+        <motion.div variants={itemVariants} className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          {accounts.map((account) => (
+            <AdvertisingAccountCard key={account.key} account={account} />
+          ))}
+        </motion.div>
+      )}
+
+      <motion.div variants={itemVariants}>
+        <Card className="shadow-none">
+          <CardHeader className="space-y-4">
+            <div className="flex flex-col gap-1">
               <CardTitle className="text-base font-semibold">
-                {t("performanceTitle")}
+                {t("manualTitle")}
               </CardTitle>
-
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t("performanceDescription")}
-              </p>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              {t("allAvailableNote")}
-            </p>
-          </CardHeader>
-
-          <CardContent className="p-5">
-            {insightsLoading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {tc("loading")}
-              </p>
-            ) : insightsError || !insights ? (
-              <ErrorState
-                description={apiErrorMessage(
-                  insightsErrorDetail,
-                  te,
-                  te("fetchInsights"),
-                )}
-                onRetry={() => refetchInsights()}
-              />
-            ) : (
-              <AdPerformance
-                insights={insights}
-                onFunnelRangeChange={setFunnelRange}
-              />
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Filters */}
-      <motion.div variants={itemVariants}>
-        <Card className="rounded-lg border border-border shadow-none">
-          <CardHeader className="gap-1 border-b border-border">
-            <CardTitle className="text-base font-semibold">
-              {t("filters")}
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="p-5">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <Label htmlFor="ads-from">{t("from")}</Label>
-                <Input
-                  id="ads-from"
-                  type="date"
-                  value={draft.from}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      from: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ads-to">{t("to")}</Label>
-                <Input
-                  id="ads-to"
-                  type="date"
-                  value={draft.to}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      to: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ads-platform">{t("platform")}</Label>
-                <Select
-                  value={draft.platform}
-                  onValueChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      platform: value ?? ALL_PLATFORMS,
-                    }))
-                  }
-                >
-                  <SelectTrigger id="ads-platform" className="w-full">
-                    <SelectValue placeholder={t("allPlatforms")} />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectItem value={ALL_PLATFORMS}>
-                      {t("allPlatforms")}
-                    </SelectItem>
-
-                    {SUGGESTED_PLATFORMS.map((platform) => (
-                      <SelectItem key={platform} value={platform}>
-                        {platform}
-                      </SelectItem>
-                    ))}
-
-                    {(summary?.byPlatform ?? [])
-                      .filter(
-                        (row) =>
-                          !SUGGESTED_PLATFORMS.includes(
-                            row.platform as (typeof SUGGESTED_PLATFORMS)[number],
-                          ),
-                      )
-                      .map((row) => (
-                        <SelectItem key={row.platform} value={row.platform}>
-                          {row.platform}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setFilters(draft);
-                    setPage(1);
-                  }}
-                >
-                  {t("filters")}
-                </Button>
-
-                {hasFilters && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setDraft(EMPTY_FILTERS);
-                      setFilters(EMPTY_FILTERS);
-                      setPage(1);
-                    }}
-                  >
-                    {t("clearFilters")}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* List */}
-      <motion.div variants={itemVariants}>
-        <Card className="overflow-hidden rounded-lg border border-border shadow-none">
-          <CardHeader className="gap-1 border-b border-border">
-            <CardTitle className="text-base font-semibold">
-              {t("listTitle")}
-            </CardTitle>
-
-            {summary && (
               <p className="text-sm text-muted-foreground">
-                {t("totalLabel", {
-                  count: formatNumber(summary.expenseCount, locale),
-                })}
+                {t("manualDescription")}
               </p>
-            )}
-          </CardHeader>
-
-          <CardContent className="p-0">
-            {isLoading ? (
-              <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-                {tc("loading")}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              <p>
+                <span className="text-muted-foreground">{t("manualTotal")}: </span>
+                <span className="font-semibold tabular-nums">
+                  {formatCurrency(manualSpend, locale)}
+                </span>
               </p>
-            ) : isError ? (
-              <div className="p-6">
-                <ErrorState
-                  description={apiErrorMessage(
-                    error,
-                    te,
-                    te("fetchAdvertising"),
-                  )}
-                  onRetry={() => refetch()}
-                />
+              <p className="text-muted-foreground tabular-nums">
+                {t("manualCount", { count: manualCount })}
+              </p>
+            </div>
+            <div className="relative" role="search" aria-label={t("filtersAria")}>
+              <Search className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-muted-foreground start-3" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t("searchPlaceholder")}
+                className="ps-9"
+                aria-label={t("searchPlaceholder")}
+              />
+            </div>
+            {hasFilters ? (
+              <div>
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  {t("clearFilters")}
+                </Button>
               </div>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {listQuery.isLoading ? (
+              <ProductsLoading />
+            ) : listQuery.isError ? (
+              <ErrorState
+                description={apiErrorMessage(listQuery.error, te, te("fetchAdvertising"))}
+                onRetry={() => listQuery.refetch()}
+              />
             ) : expenses.length === 0 ? (
               <EmptyState
                 icon={Megaphone}
-                title={hasFilters ? t("noMatch") : t("empty")}
-                description={hasFilters ? undefined : t("emptyDescription")}
+                title={hasFilters ? t("noMatch") : t("manualEmpty")}
+                description={hasFilters ? undefined : t("manualEmptyDescription")}
                 action={
-                  hasFilters ? undefined : (
-                    <Button type="button" variant="outline" onClick={openCreate}>
-                      <Plus className="size-4" />
-                      {t("add")}
+                  hasFilters ? (
+                    <Button variant="outline" onClick={clearFilters}>
+                      {t("clearFilters")}
                     </Button>
+                  ) : (
+                    <Button onClick={openCreate}>{t("add")}</Button>
                   )
                 }
               />
             ) : (
               <>
-                {/* Desktop */}
-                <div className="hidden md:block">
-                  <div className="grid grid-cols-[minmax(120px,1fr)_minmax(140px,1.4fr)_minmax(110px,1fr)_minmax(110px,1fr)_minmax(150px,2fr)_88px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <span>{t("date")}</span>
-                    <span>{t("platform")}</span>
-                    <span>{t("campaign")}</span>
-                    <span className="text-end">{t("amount")}</span>
-                    <span>{t("note")}</span>
-                    <span>{t("actions")}</span>
-                  </div>
-
-                  {expenses.map((expense) => (
-                    <div
-                      key={expense._id}
-                      className="grid grid-cols-[minmax(120px,1fr)_minmax(140px,1.4fr)_minmax(110px,1fr)_minmax(110px,1fr)_minmax(150px,2fr)_88px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0"
-                    >
-                      <span className="text-sm tabular-nums">
-                        {formatDate(expense.date, locale)}
-                      </span>
-
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-sm font-medium">
-                          {expense.platform}
-                        </span>
-
-                        <SourceBadge source={expense.source} />
-                      </span>
-
-                      <span className="truncate text-sm text-muted-foreground">
-                        {expense.campaign || "-"}
-                      </span>
-
-                      <span className="text-end text-sm font-semibold tabular-nums">
-                        {formatCurrency(expense.amount, locale)}
-                      </span>
-
-                      <span className="truncate text-sm text-muted-foreground">
-                        {expense.note || "-"}
-                      </span>
-
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => openEdit(expense)}
-                          aria-label={t("edit")}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(expense)}
-                          disabled={deleteMutation.isPending}
-                          aria-label={t("delete")}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Mobile */}
-                <ul className="divide-y divide-border md:hidden">
-                  {expenses.map((expense) => (
-                    <li key={expense._id} className="space-y-2 p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold">
-                              {expense.platform}
-                            </p>
-
-                            <SourceBadge source={expense.source} />
-                          </div>
-
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(expense.date, locale)}
-                            {expense.campaign ? ` - ${expense.campaign}` : ""}
+                <div className={listQuery.isFetching ? "opacity-60" : undefined}>
+                  {/* Mobile: stacked rows. Desktop: table. */}
+                  <ul className="divide-y divide-border rounded-md border border-border sm:hidden">
+                    {expenses.map((row) => (
+                      <li key={row._id} className="space-y-1 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium">
+                            {row.platform} · {formatDate(row.date, locale)}
+                          </p>
+                          <p className="text-sm font-semibold tabular-nums">
+                            {formatCurrency(row.amount, locale)}
                           </p>
                         </div>
-
-                        <div className="flex shrink-0 items-center gap-1">
-                          <span className="text-sm font-semibold tabular-nums">
-                            {formatCurrency(expense.amount, locale)}
-                          </span>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            onClick={() => openEdit(expense)}
-                            aria-label={t("edit")}
-                          >
+                        {row.campaign ? (
+                          <p className="text-xs text-muted-foreground">{row.campaign}</p>
+                        ) : null}
+                        {row.note ? (
+                          <p className="text-xs text-muted-foreground">{row.note}</p>
+                        ) : null}
+                        <div className="flex gap-1 pt-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
                             <Pencil className="size-4" />
+                            {t("edit")}
                           </Button>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(expense)}
-                            aria-label={t("delete")}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => setExpenseToDelete(row)}>
                             <Trash2 className="size-4" />
+                            {t("delete")}
                           </Button>
                         </div>
-                      </div>
-
-                      {expense.note && (
-                        <p className="text-xs text-muted-foreground">
-                          {expense.note}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="hidden overflow-x-auto rounded-md border border-border sm:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("date")}</TableHead>
+                          <TableHead>{t("amount")}</TableHead>
+                          <TableHead>{t("platform")}</TableHead>
+                          <TableHead>{t("campaign")}</TableHead>
+                          <TableHead>{t("note")}</TableHead>
+                          <TableHead className="text-end">{t("actions")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {expenses.map((row) => (
+                          <TableRow key={row._id}>
+                            <TableCell className="whitespace-nowrap tabular-nums">
+                              {formatDate(row.date, locale)}
+                            </TableCell>
+                            <TableCell className="font-semibold tabular-nums">
+                              {formatCurrency(row.amount, locale)}
+                            </TableCell>
+                            <TableCell>{row.platform}</TableCell>
+                            <TableCell className="max-w-45 truncate">{row.campaign || "\u2014"}</TableCell>
+                            <TableCell className="max-w-55 truncate">{row.note || "\u2014"}</TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-1" role="group" aria-label={t("actionsAria")}>
+                                <Button variant="ghost" size="sm" aria-label={t("edit")} onClick={() => openEdit(row)}>
+                                  <Pencil className="size-4" />
+                                  {t("edit")}
+                                </Button>
+                                <Button variant="ghost" size="sm" aria-label={t("delete")} onClick={() => setExpenseToDelete(row)}>
+                                  <Trash2 className="size-4" />
+                                  {t("delete")}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+                {(pagination?.totalPages ?? 1) > 1 ? (
+                  <Pagination
+                    currentPage={pagination?.currentPage ?? page}
+                    totalPages={pagination?.totalPages ?? 1}
+                    hasPreviousPage={pagination?.hasPreviousPage ?? false}
+                    hasNextPage={pagination?.hasNextPage ?? false}
+                    onPrevious={() => setPage((c) => Math.max(c - 1, 1))}
+                    onNext={() => setPage((c) => c + 1)}
+                    onFirst={() => setPage(1)}
+                    onLast={() => setPage(pagination?.totalPages ?? page)}
+                    isFetching={listQuery.isFetching}
+                  />
+                ) : null}
               </>
             )}
           </CardContent>
         </Card>
       </motion.div>
 
-      {(pagination?.totalPages ?? 0) > 1 && (
-        <motion.div variants={itemVariants}>
-          <Pagination
-            currentPage={pagination?.currentPage ?? page}
-            totalPages={pagination?.totalPages ?? 1}
-            hasPreviousPage={pagination?.hasPreviousPage ?? false}
-            hasNextPage={pagination?.hasNextPage ?? false}
-            onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
-            onNext={() => setPage((current) => current + 1)}
-          />
-        </motion.div>
-      )}
+      <WindsorSyncDialog open={showSync} onOpenChange={setShowSync} />
 
       <AdvertisingExpenseForm
-        open={formOpen}
+        open={showForm}
         expense={editing}
-        onOpenChange={setFormOpen}
+        onOpenChange={setShowForm}
       />
 
-      <WindsorSyncDialog
-        open={windsorOpen}
-        onOpenChange={setWindsorOpen}
-      />
-    </motion.div>
-  );
-}
-
-/**
- * Manual / Windsor origin. A missing `source` means the row predates the
- * field, so it is manual.
- */
-function SourceBadge({ source }: { source?: "manual" | "windsor" }) {
-  const t = useTranslations("advertising");
-  const isWindsor = source === "windsor";
-
-  return (
-    <span
-      className={cn(
-        "shrink-0 rounded-sm border px-1.5 py-0.5 text-[0.65rem] font-medium",
-        isWindsor
-          ? "border-primary/40 text-primary"
-          : "border-border text-muted-foreground",
-      )}
-    >
-      {isWindsor ? t("source.windsor") : t("source.manual")}
-    </span>
-  );
-}
-
-/** null renders as "-", never "NaN" or "Infinity". */
-function nullableMoney(value: number | null, locale: "en" | "ar"): string {
-  return value === null ? "-" : formatCurrency(value, locale);
-}
-
-/** Store name for display. Only the two real stores exist. */
-function storeLabel(store: string): string {
-  if (store === "viora") return "Viora";
-  if (store === "trendora") return "Trendora";
-
-  return store;
-}
-
-/** null (no data / divide by zero) renders as an em dash, never NaN. */
-function Money({
-  value,
-  locale,
-}: {
-  value: number | null;
-  locale: "en" | "ar";
-}) {
-  return (
-    <span className="text-base font-semibold tabular-nums">
-      {nullableMoney(value, locale)}
-    </span>
-  );
-}
-
-function PerformanceMetric({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="bg-card px-4 py-3">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-
-      <p className="mt-1">{value}</p>
-
-      {hint ? (
-        <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-          {hint}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-const VERDICT_TONE: Record<
-  AdVerdict,
-  { border: string; text: string }
-> = {
-  scale: { border: "border-s-success", text: "text-success" },
-  watch: { border: "border-s-warning", text: "text-warning" },
-  losing: { border: "border-s-destructive", text: "text-destructive" },
-  noData: { border: "border-s-border", text: "text-muted-foreground" },
-};
-
-const VERDICT_ICON: Record<AdVerdict, typeof TrendingUp> = {
-  scale: TrendingUp,
-  watch: TrendingUp,
-  losing: TrendingDown,
-  noData: Megaphone,
-};
-
-/**
- * Ad performance.
- *
- * Two separate blocks, because they answer different questions:
- *
- *  1. WINDSOR (all available data) - what the ads did across BOTH stores.
- *     No 7/30 limit here; the period shown is the period Windsor returned.
- *  2. FUNNEL (period-scoped) - ads vs delivered orders and profit, where
- *     the message -> order rate is a PERIOD-LEVEL ratio, NOT attribution.
- */
-function AdPerformance({
-  insights,
-  onFunnelRangeChange,
-}: {
-  insights: AdInsights;
-  onFunnelRangeChange: (value: 7 | 30) => void;
-}) {
-  const t = useTranslations("advertising");
-  const locale = useLocale() as "en" | "ar";
-
-  const { windsor, manual, total, funnel, campaigns } = insights;
-  const period =
-    insights.availablePeriod.from && insights.availablePeriod.to
-      ? `${insights.availablePeriod.from} → ${insights.availablePeriod.to}`
-      : null;
-
-  const tone = VERDICT_TONE[funnel.verdict];
-  const VerdictIcon = VERDICT_ICON[funnel.verdict];
-
-  return (
-    <div className="space-y-6">
-      {/* ---------- 1. Windsor, all available data ---------- */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-sm font-semibold">{t("windsorSection")}</p>
-
-          <p className="text-xs text-muted-foreground">
-            {period
-              ? t("availablePeriod", { period })
-              : t("noWindsorData")}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-4">
-          <PerformanceMetric
-            label={t("totalAdSpend")}
-            value={<Money value={total.adSpend} locale={locale} />}
-            hint={t("spendSplit", {
-              windsor: formatCurrency(windsor.spend, locale),
-              manual: formatCurrency(manual.spend, locale),
-            })}
-          />
-
-          <PerformanceMetric
-            label={t("windsorSource")}
-            value={<Money value={windsor.sourceSpend} locale={locale} />}
-            hint={t("convertedAt", {
-              currency: insights.sourceCurrency,
-              rate: insights.rate,
-            })}
-          />
-
-          <PerformanceMetric
-            label={t("messages")}
-            value={
-              <span className="text-base font-semibold tabular-nums">
-                {formatNumber(windsor.messages, locale)}
-              </span>
-            }
-            hint={t("clicksHint", {
-              clicks: formatNumber(windsor.clicks, locale),
-            })}
-          />
-
-          <PerformanceMetric
-            label={t("costPerMessage")}
-            value={<Money value={total.costPerMessage} locale={locale} />}
-            hint={t("costPerMessageHint", {
-              spend: formatCurrency(total.adSpend, locale),
-            })}
-          />
-        </div>
-
-        {/* Source / ad-account breakdown */}
-        {insights.connections.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-semibold">{t("sourcesTitle")}</p>
-
-            <div className="grid grid-cols-[minmax(120px,1.4fr)_minmax(100px,1fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(80px,1fr)] items-center gap-3 border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <span>{t("source")}</span>
-              <span className="text-end">{t("spend")}</span>
-              <span className="text-end">{t("messages")}</span>
-              <span className="text-end">{t("clicks")}</span>
-              <span className="text-end">{t("costPerMessage")}</span>
-            </div>
-
-            {insights.connections.map((conn) => (
-              <ConnectionGroup key={conn.id} connection={conn} insights={insights} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ---------- 2. Period funnel ---------- */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-sm font-semibold">{t("funnelTitle")}</p>
-
-          <div
-            className="inline-flex rounded-md border border-border p-0.5"
-            role="group"
-            aria-label={t("funnelTitle")}
-          >
-            {([7, 30] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onFunnelRangeChange(value)}
-                aria-pressed={funnel.range === value}
-                className={cn(
-                  "rounded-sm px-3 py-1 text-xs font-medium transition-colors",
-                  funnel.range === value
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t("days", { count: value })}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-4">
-          <PerformanceMetric
-            label={t("spend")}
-            value={<Money value={funnel.adSpend} locale={locale} />}
-            hint={t("spendSplit", {
-              windsor: formatCurrency(funnel.windsorSpend, locale),
-              manual: formatCurrency(funnel.manualSpend, locale),
-            })}
-          />
-
-          <PerformanceMetric
-            label={t("deliveredOrders")}
-            value={
-              <span className="text-base font-semibold tabular-nums">
-                {formatNumber(funnel.deliveredOrders, locale)}
-              </span>
-            }
-            hint={t("costPerOrder", {
-              amount: nullableMoney(funnel.costPerOrder, locale),
-            })}
-          />
-
-          <PerformanceMetric
-            label={t("messageToOrder")}
-            value={<Money value={funnel.messageToOrderRate} locale={locale} />}
-            hint={t("messageToOrderHint", {
-              messages: formatNumber(funnel.messages, locale),
-              orders: formatNumber(funnel.deliveredOrders, locale),
-            })}
-          />
-
-          <PerformanceMetric
-            label={t("profitPerOrder")}
-            value={
-              <Money value={funnel.profitPerOrderBeforeAds} locale={locale} />
-            }
-            hint={t("breakEvenMessage", {
-              amount: nullableMoney(funnel.breakEvenCostPerMessage, locale),
-            })}
-          />
-        </div>
-
-        {/* Verdict + the single next step */}
-        <div className={cn("border-s-4 ps-4 pe-4 py-3", tone.border)}>
-          <p
-            className={cn(
-              "flex items-center gap-2 text-sm font-semibold",
-              tone.text,
-            )}
-          >
-            <VerdictIcon className="size-4 shrink-0" />
-            {t(`verdict.${funnel.verdict}`)}
-          </p>
-
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t(`verdictNext.${funnel.verdict}`)}
-          </p>
-
-          {funnel.verdict === "noData" && funnel.verdictReason && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(`verdictReason.${funnel.verdictReason}`)}
-            </p>
-          )}
-        </div>
-
-        <p className="text-xs text-muted-foreground">{t("profitBasisNote")}</p>
-
-        <p className="text-xs text-muted-foreground">
-          {t("currencyBasisNote", {
-            rate: insights.rate,
-            currency: insights.sourceCurrency,
-          })}
-        </p>
-
-        <p className="text-xs text-muted-foreground">{t("noAttributionNote")}</p>
-      </section>
-
-      {/* ---------- Campaigns ---------- */}
-      {campaigns.length > 0 && (
-        <section>
-          <p className="mb-2 text-sm font-semibold">{t("campaigns")}</p>
-
-          <div className="grid grid-cols-[minmax(140px,2fr)_minmax(110px,1.4fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(70px,1fr)_minmax(90px,1fr)] items-center gap-3 border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            <span>{t("campaign")}</span>
-            <span>{t("source")}</span>
-            <span className="text-end">{t("spend")}</span>
-            <span className="text-end">{t("messages")}</span>
-            <span className="text-end">{t("clicks")}</span>
-            <span className="text-end">{t("costPerMessage")}</span>
-          </div>
-
-          {campaigns.map((campaign) => (
-            <div
-              key={`${campaign.store}|${campaign.accountId}|${campaign.campaign}`}
-              className={cn(
-                "grid grid-cols-[minmax(140px,2fr)_minmax(110px,1.4fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(70px,1fr)_minmax(90px,1fr)] items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0",
-                campaign.flagged && "bg-surface",
-              )}
-            >
-              <span className="truncate text-sm" title={campaign.campaign}>
-                {campaign.campaign}
-              </span>
-
-              <span
-                className="truncate text-xs text-muted-foreground"
-                title={campaign.accountName}
-              >
-                {storeLabel(campaign.store)} ·{" "}
-                {campaign.accountName || campaign.accountId}
-              </span>
-
-              <span className="text-end text-sm tabular-nums">
-                {formatCurrency(campaign.spend, locale)}
-              </span>
-
-              <span className="text-end text-sm tabular-nums">
-                {formatNumber(campaign.messages, locale)}
-              </span>
-
-              <span className="text-end text-sm tabular-nums">
-                {formatNumber(campaign.clicks, locale)}
-              </span>
-
-              <span
-                className={cn(
-                  "text-end text-sm font-medium tabular-nums",
-                  campaign.flagged ? "text-destructive" : "text-text",
-                )}
-              >
-                {campaign.costPerMessage === null
-                  ? "-"
-                  : formatCurrency(campaign.costPerMessage, locale)}
-              </span>
-            </div>
-          ))}
-
-          {campaigns.some((c) => c.flagged) && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t("campaignFlagged")}
-            </p>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
-/** All ad accounts belonging to one Windsor connection. */
-function ConnectionGroup({
-  connection,
-  insights,
-}: {
-  connection: AdInsights["connections"][number];
-  insights: AdInsights;
-}) {
-  const t = useTranslations("advertising");
-  const locale = useLocale() as "en" | "ar";
-
-  const sources = insights.sources.filter(
-    (s) => s.connectionId === connection.id,
-  );
-
-  if (sources.length === 0) return null;
-
-  return (
-    <>
-      <p className="bg-card px-3 py-2 text-xs font-semibold text-muted-foreground">
-        {connection.label}
-      </p>
-
-      {sources.map((source) => (
+      {expenseToDelete ? (
         <div
-          key={`${source.connectionId}|${source.accountId}`}
-          className="grid grid-cols-[minmax(120px,1.4fr)_minmax(100px,1fr)_minmax(80px,1fr)_minmax(70px,1fr)_minmax(80px,1fr)] items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label={t("deleteConfirm", {
+            amount: formatCurrency(expenseToDelete.amount, locale),
+          })}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            if (!deleteMutation.isPending) setExpenseToDelete(null);
+          }}
         >
-          <span className="min-w-0">
-            <span className="block truncate text-sm">
-              {source.accountName || source.accountId}
-            </span>
-
-            {source.from ? (
-              <span className="block text-xs text-muted-foreground">
-                {t("availablePeriod", {
-                  period: `${source.from} → ${source.to}`,
-                })}
-              </span>
-            ) : null}
-          </span>
-
-          <span className="text-end text-sm font-medium tabular-nums">
-            {formatCurrency(source.spend, locale)}
-          </span>
-
-          <span className="text-end text-sm tabular-nums">
-            {formatNumber(source.messages, locale)}
-          </span>
-
-          <span className="text-end text-sm tabular-nums">
-            {formatNumber(source.clicks, locale)}
-          </span>
-
-          <span className="text-end text-sm tabular-nums">
-            {source.costPerMessage === null
-              ? "-"
-              : formatCurrency(source.costPerMessage, locale)}
-          </span>
+          <div
+            role="document"
+            className="w-full max-w-md space-y-4 rounded-lg border border-border bg-card p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-medium">
+              {t("deleteConfirm", {
+                amount: formatCurrency(expenseToDelete.amount, locale),
+              })}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setExpenseToDelete(null)}
+                disabled={deleteMutation.isPending}
+              >
+                {tc("cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(expenseToDelete._id)}
+              >
+                {deleteMutation.isPending ? tc("deleting") : tc("delete")}
+              </Button>
+            </div>
+          </div>
         </div>
-      ))}
-    </>
-  );
-}
-
-function SummaryTile({
-  label,
-  value,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  icon: typeof Banknote;
-  tone: "primary" | "default";
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-4 rounded-lg border border-border bg-card px-5 py-5">
-      <div
-        className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-md",
-          tone === "primary"
-            ? "bg-primary text-primary-foreground"
-            : "border bg-muted text-muted-foreground",
-        )}
-      >
-        <Icon className="size-5" />
-      </div>
-
-      <div className="min-w-0">
-        <p className="truncate text-sm text-muted-foreground">{label}</p>
-
-        <p className="mt-1 text-2xl font-bold leading-none tabular-nums">
-          {value}
-        </p>
-      </div>
-    </div>
+      ) : null}
+    </motion.div>
   );
 }
