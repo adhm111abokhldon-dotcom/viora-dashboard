@@ -522,6 +522,7 @@
     "source": "Source",
     "performanceTitle": "Ad performance",
     "performanceDescription": "Is the advertising paying for itself? Delivered orders only.",
+    "days": "{count, plural, one {# day} other {# days}}",
     "spend": "Spend",
     "messages": "Messages",
     "clicks": "Clicks",

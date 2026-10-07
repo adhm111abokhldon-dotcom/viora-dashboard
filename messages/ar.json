@@ -522,6 +522,7 @@
     "source": "المصدر",
     "performanceTitle": "أداء الإعلانات",
     "performanceDescription": "هل تغطي الإعلانات تكلفتها؟ الطلبات المسلّمة فقط.",
+    "days": "{count, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يوماً} other {# يوم}}",
     "spend": "الإنفاق",
     "messages": "الرسائل",
     "clicks": "النقرات",
@@ -535,7 +536,7 @@
     "campaigns": "الحملات",
     "campaignFlagged": "تكلفة رسالة أعلى من المتوسط",
     "verdict": {
-      "scale": "zosّع",
+      "scale": "توسّع",
       "watch": "راقب",
       "losing": "أوقف أو عدّل",
       "noData": "لا بيانات"

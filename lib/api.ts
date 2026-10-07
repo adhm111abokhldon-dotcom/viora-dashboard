@@ -462,6 +462,80 @@ export async function getAdSummary(): Promise<AdSummary> {
   return response.json();
 }
 
+/**
+ * POST /advertising/performance?range=7|30 - period-scoped analytics behind
+ * the Advertising page's "Ads performance" verdict and the "Ads vs delivered
+ * orders" funnel.
+ *
+ * The window is the Beirut business day range (same helper as Reports), so
+ * the verdict always answers "for the last N days". Delivered orders and
+ * product profit come from Delivered orders only; ad spend and messages come
+ * from every stored advertising row in the window (manual + Windsor, each
+ * counted exactly once).
+ */
+export type AdPerformanceResponse = {
+  range: 7 | 30;
+  summary: {
+    deliveredOrders: number;
+    productSales: number;
+    productProfit: number;
+    adSpend: number;
+    adMessages: number;
+    adCount: number;
+  };
+  financials: {
+    productSales: number;
+    productProfit: number;
+    adSpend: number;
+    adMessages: number;
+    netProfitAfterAds: number;
+  };
+  verdict: {
+    /**
+     * cost-per-order vs profit-per-order:
+     *   < 1/2 -> scale, <= 1 -> watch, > 1 -> losing,
+     *   not enough data -> noData (see `reason`).
+     */
+    type: "scale" | "watch" | "losing" | "noData";
+    /** Why the verdict is `noData`; null for scored verdicts. */
+    reason: "noAdSpend" | "noProfitBaseline" | "noDeliveredOrders" | null;
+    costPerOrder: number | null;
+    profitPerOrder: number | null;
+    /** Total ad spend expressed in delivered orders' profit. */
+    breakEvenPerOrder: number | null;
+    adSpentPerMessage: number | null;
+  };
+  /** Fixed order: viora, trendora_facebook, trendora_instagram (+ fallback). */
+  accounts: Array<{
+    key: AdAccountKey;
+    spend: number;
+    messages: number;
+    accountId: string | null;
+    accountStatus: string;
+  }>;
+  dailyAdSpend: Array<{ date: string; spend: number }>;
+  dailyAdMessages: Array<{ date: string; messages: number }>;
+  /** Latest business day of the window (YYYY-MM-DD, Beirut). */
+  availableTo: string;
+};
+
+export async function getAdPerformance(
+  range: 7 | 30,
+): Promise<AdPerformanceResponse> {
+  const response = await fetch(
+    `${API_URL}/advertising/performance?range=${range}`,
+    { method: "POST" },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await errorMessage(response, "Failed to fetch ad performance"),
+    );
+  }
+
+  return response.json();
+}
+
 export type WindsorPreviewRow = {
   store: string;
   accountId: string;

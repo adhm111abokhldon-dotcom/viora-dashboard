@@ -21,6 +21,7 @@ const API_ERROR_KEYS: Record<string, string> = {
   "Failed to fetch dashboard": "fetchDashboard",
   "Failed to fetch advertising expenses": "fetchAdvertising",
   "Failed to fetch ad summary": "fetchInsights",
+  "Failed to fetch ad performance": "fetchInsights",
   "Failed to create advertising expense": "createAdvertising",
   "Failed to update advertising expense": "updateAdvertising",
   "Failed to delete advertising expense": "deleteAdvertising",

@@ -31,6 +31,7 @@ import {
 
 import {
   deleteAdvertisingExpense,
+  getAdPerformance,
   getAdSummary,
   getAdvertisingExpenses,
   type AdAccountSummary,
@@ -45,11 +46,20 @@ import AdvertisingAccountCard from "@/components/AdvertisingAccountCard";
 import AdvertisingExpenseForm from "@/components/AdvertisingExpenseForm";
 import WindsorSyncDialog from "@/components/WindsorSyncDialog";
 import { containerVariants, itemVariants } from "@/lib/motion";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { apiErrorMessage } from "@/lib/errors";
 import { useAppToast } from "@/lib/toast";
 import { useInvalidateAll } from "@/lib/queries";
 const PAGE_SIZE = 10;
+
+/** Colour scheme for the Ads performance verdict badge. */
+const VERDICT_BADGE_CLASSES: Record<string, string> = {
+  scale:
+    "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  watch: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  losing: "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400",
+  noData: "border-border bg-muted text-muted-foreground",
+};
 
 /**
  * Business-oriented Advertising overview.
@@ -80,6 +90,8 @@ export default function AdvertisingPage() {
   const [showForm, setShowForm] = useState(false);
   const [expenseToDelete, setExpenseToDelete] =
     useState<AdvertisingExpense | null>(null);
+  // Period for the verdict + funnel: same 7/30 toggle as the Reports page.
+  const [range, setRange] = useState<7 | 30>(7);
 
   // Debounced search: every keystroke resets to page 1 only once settled.
   useEffect(() => {
@@ -94,6 +106,15 @@ export default function AdvertisingPage() {
   const summaryQuery = useQuery({
     queryKey: ["adSummary"],
     queryFn: () => getAdSummary(),
+    placeholderData: keepPreviousData,
+  });
+
+  // Period-scoped verdict + funnel. keepPreviousData keeps the previous
+  // window on screen while the new one loads, so the verdict badge never
+  // flickers empty when the owner flips 7 <-> 30 days.
+  const performanceQuery = useQuery({
+    queryKey: ["adPerformance", range],
+    queryFn: () => getAdPerformance(range),
     placeholderData: keepPreviousData,
   });
 
@@ -131,6 +152,7 @@ export default function AdvertisingPage() {
   });
 
   const summary = summaryQuery.data;
+  const perf = performanceQuery.data;
   const expenses = useMemo(() => listQuery.data?.expenses ?? [], [listQuery.data]);
   const pagination = listQuery.data?.pagination;
   const hasFilters = search !== "";
@@ -235,6 +257,228 @@ export default function AdvertisingPage() {
                 </dd>
               </div>
             </dl>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Period verdict: is the ad spend paying for itself? 7/30 window. */}
+      <motion.div variants={itemVariants}>
+        <Card className="shadow-none">
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
+            <div className="space-y-1">
+              <CardTitle className="text-base font-semibold">
+                {t("performanceTitle")}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {t("performanceDescription")}
+              </p>
+            </div>
+            <div
+              role="group"
+              aria-label={t("performanceTitle")}
+              className="inline-flex rounded-md border border-border p-0.5"
+            >
+              {[7, 30].map((value) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={range === value ? "secondary" : "ghost"}
+                  onClick={() => setRange(value as 7 | 30)}
+                >
+                  {t("days", { count: value })}
+                </Button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {performanceQuery.isPending ? (
+              <p className="text-sm text-muted-foreground">{tc("loading")}</p>
+            ) : performanceQuery.isError || !perf ? (
+              <ErrorState
+                description={apiErrorMessage(
+                  performanceQuery.error,
+                  te,
+                  te("fetchInsights"),
+                )}
+                onRetry={() => performanceQuery.refetch()}
+              />
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                      VERDICT_BADGE_CLASSES[perf.verdict.type] ??
+                      VERDICT_BADGE_CLASSES.noData
+                    }`}
+                  >
+                    {t(`verdict.${perf.verdict.type}`)}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {t("days", { count: perf.range })}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {perf.verdict.reason
+                    ? t(`verdictReason.${perf.verdict.reason}`)
+                    : t(`verdictNext.${perf.verdict.type}`)}
+                </p>
+                <ul className="grid gap-1.5 text-sm sm:grid-cols-2">
+                  <li className="tabular-nums">
+                    {t("costPerOrder", {
+                      amount:
+                        perf.verdict.costPerOrder === null
+                          ? "—"
+                          : formatCurrency(perf.verdict.costPerOrder, locale),
+                    })}
+                  </li>
+                  <li className="tabular-nums">
+                    <span className="text-muted-foreground">
+                      {t("profitPerOrder")}:{" "}
+                    </span>
+                    <span className="font-medium">
+                      {perf.verdict.profitPerOrder === null
+                        ? "—"
+                        : formatCurrency(perf.verdict.profitPerOrder, locale)}
+                    </span>
+                  </li>
+                  <li className="tabular-nums">
+                    {t("breakEvenMessage", {
+                      amount:
+                        perf.verdict.adSpentPerMessage === null
+                          ? "—"
+                          : formatCurrency(
+                              perf.verdict.adSpentPerMessage,
+                              locale,
+                            ),
+                    })}
+                  </li>
+                  <li className="tabular-nums">
+                    <span className="text-muted-foreground">
+                      {t("deliveredOrders")}:{" "}
+                    </span>
+                    <span className="font-medium">
+                      {formatNumber(perf.summary.deliveredOrders, locale)}
+                    </span>
+                  </li>
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  {t("profitBasisNote")}
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Ads vs delivered orders funnel for the selected window. */}
+      <motion.div variants={itemVariants}>
+        <Card className="shadow-none">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-base font-semibold">
+              {t("funnelTitle")}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {perf
+                ? t("messageToOrderHint", {
+                    messages: formatNumber(perf.summary.adMessages, locale),
+                    orders: formatNumber(
+                      perf.summary.deliveredOrders,
+                      locale,
+                    ),
+                  })
+                : "\u00A0"}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {performanceQuery.isPending ? (
+              <p className="text-sm text-muted-foreground">{tc("loading")}</p>
+            ) : performanceQuery.isError || !perf ? (
+              <ErrorState
+                description={apiErrorMessage(
+                  performanceQuery.error,
+                  te,
+                  te("fetchInsights"),
+                )}
+                onRetry={() => performanceQuery.refetch()}
+              />
+            ) : (
+              <>
+                <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-4">
+                  <div className="bg-card px-4 py-3">
+                    <dt className="text-xs text-muted-foreground">
+                      {t("spend")}
+                    </dt>
+                    <dd className="mt-1 text-base font-semibold tabular-nums">
+                      {formatCurrency(perf.summary.adSpend, locale)}
+                    </dd>
+                  </div>
+                  <div className="bg-card px-4 py-3">
+                    <dt className="text-xs text-muted-foreground">
+                      {t("messages")}
+                    </dt>
+                    <dd className="mt-1 text-base font-semibold tabular-nums">
+                      {formatNumber(perf.summary.adMessages, locale)}
+                    </dd>
+                  </div>
+                  <div className="bg-card px-4 py-3">
+                    <dt className="text-xs text-muted-foreground">
+                      {t("deliveredOrders")}
+                    </dt>
+                    <dd className="mt-1 text-base font-semibold tabular-nums">
+                      {formatNumber(perf.summary.deliveredOrders, locale)}
+                    </dd>
+                  </div>
+                  <div className="bg-card px-4 py-3">
+                    <dt className="text-xs text-muted-foreground">
+                      {t("messageToOrder")}
+                    </dt>
+                    <dd className="mt-1 text-base font-semibold tabular-nums">
+                      {perf.summary.adMessages > 0 &&
+                      perf.summary.deliveredOrders > 0
+                        ? formatNumber(
+                            perf.summary.deliveredOrders /
+                              perf.summary.adMessages,
+                            locale,
+                            { maximumFractionDigits: 2 },
+                          )
+                        : "—"}
+                    </dd>
+                  </div>
+                </dl>
+
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {perf.accounts.map((account) => {
+                    const hasData = account.spend > 0 || account.messages > 0;
+
+                    return (
+                      <li
+                        key={account.key}
+                        className="flex items-center justify-between gap-3 px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {t(`accounts.${account.key}`)}
+                          </p>
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            {hasData
+                              ? `${t("messages")}: ${formatNumber(account.messages, locale)}`
+                              : t("noDataForAccount")}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold tabular-nums">
+                          {hasData ? formatCurrency(account.spend, locale) : "—"}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <p className="text-xs text-muted-foreground">
+                  {t("noAttributionNote")}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </motion.div>

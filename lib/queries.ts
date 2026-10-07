@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
  *   ["dashboard"]                             -> ["dashboard"]
  *   ["advertising", page, filters]            -> ["advertising"]
  *   ["adSummary"]                             -> ["adSummary"]
+ *   ["adPerformance", range]                  -> ["adPerformance"]
  *
  * NOTE: "order" and "product" are listed separately on purpose - they are
  * distinct array roots, so invalidating ["order"] does NOT cover ["orders"]
@@ -36,6 +37,8 @@ export const BUSINESS_QUERY_ROOTS = [
   "advertising",
   // The all-time Advertising summary (grand total + account cards).
   "adSummary",
+  // Period-scoped Ads-vs-delivered-orders verdict + funnel (7/30 days).
+  "adPerformance",
 ] as const;
 
 /**
