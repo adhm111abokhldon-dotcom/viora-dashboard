@@ -37,7 +37,7 @@ export default function OrderActions({
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label={t("aria", { id: order._id })}
+            aria-label={t("aria", { id: order.orderNumber ?? "—" })}
             disabled={isUpdatingStatus}
           />
         }

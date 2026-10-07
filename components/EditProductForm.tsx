@@ -18,7 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { Product, updateProduct } from "@/lib/api";
+import { Product, updateProduct, type CampaignReference } from "@/lib/api";
+import CampaignPicker from "@/components/CampaignPicker";
 import { uploadProductImage } from "@/lib/cloudinary";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { isKnownCategory } from "@/lib/categories";
@@ -56,6 +57,9 @@ export default function EditProductForm({ product }: EditProductFormProps) {
   const [price, setPrice] = useState(String(product.price));
   const [cost, setCost] = useState(String(product.cost));
   const [stock, setStock] = useState(String(product.stock));
+  const [campaigns, setCampaigns] = useState<CampaignReference[]>(
+    product.campaigns ?? [],
+  );
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(
@@ -101,6 +105,7 @@ export default function EditProductForm({ product }: EditProductFormProps) {
         cost: productCost,
         stock: Number(stock),
         imageUrl,
+        campaigns,
       });
     },
 
@@ -358,6 +363,8 @@ export default function EditProductForm({ product }: EditProductFormProps) {
             </div>
           </CardContent>
         </Card>
+
+        <CampaignPicker value={campaigns} onChange={setCampaigns} />
 
         {/* Pricing & Inventory */}
         <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">

@@ -135,7 +135,9 @@ export default function DeleteOrderPage() {
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="text-base">
-            <span dir="ltr">{tOrders("orderHash", { id: order._id.slice(-6) })}</span>
+            <span dir="ltr">
+              {tOrders("orderHash", { id: order.orderNumber ?? "—" })}
+            </span>
           </CardTitle>
         </CardHeader>
 

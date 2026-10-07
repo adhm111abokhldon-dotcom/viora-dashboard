@@ -21,22 +21,20 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import LogoImg from "@/public/logo.jpeg";
-
-const VALID_USERNAMES = ["viora", "viorabeauty2004"];
-const VALID_PASSWORD = "viora2004";
+import { ApiError, login } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
   const t = useTranslations("login");
 
-  const [username, setUsername] = useState("viora");
-  const [password, setPassword] = useState("viora2004");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!username.trim() || !password) {
@@ -44,20 +42,23 @@ export default function LoginPage() {
       return;
     }
 
-    if (
-      !VALID_USERNAMES.includes(username.trim().toLowerCase()) ||
-      password !== VALID_PASSWORD
-    ) {
-      setError(t("invalid"));
-      return;
-    }
-
     setError("");
     setIsSubmitting(true);
 
-    sessionStorage.setItem("isLoggedIn", "true");
-
-    router.push("/dashboard");
+    try {
+      await login(username.trim(), password);
+      router.push("/dashboard");
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        setError(t("invalid"));
+      } else if (cause instanceof ApiError && cause.status === 429) {
+        setError(t("rateLimited"));
+      } else {
+        setError(t("unavailable"));
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

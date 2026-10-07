@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/table";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { getDashboard, updateOrderStatus, type OrderStatus } from "@/lib/api";
-import { shortId, summarizeItems } from "@/lib/orders";
+import { summarizeItems } from "@/lib/orders";
 import { orderStatusDot } from "@/lib/status";
 import { containerVariants, itemVariants } from "@/lib/motion";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -603,7 +603,7 @@ export default function DashboardPage() {
                           return (
                             <TableRow key={order._id} className="group">
                               <TableCell className="ps-6 font-semibold tabular-nums">
-                                <span dir="ltr">#{shortId(order._id)}</span>
+                                <span dir="ltr">#{order.orderNumber ?? "—"}</span>
                               </TableCell>
 
                               <TableCell className="font-medium">
@@ -689,7 +689,7 @@ export default function DashboardPage() {
                                     dir="ltr"
                                     className="text-xs font-normal text-text-muted tabular-nums"
                                   >
-                                    #{shortId(order._id)}
+                                    #{order.orderNumber ?? "—"}
                                   </span>
                                 </p>
 

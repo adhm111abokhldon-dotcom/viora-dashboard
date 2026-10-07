@@ -6,6 +6,7 @@ export type Product = {
   cost: number;
   stock: number;
   imageUrl?: string;
+  campaigns?: CampaignReference[];
   createdAt: string;
   updatedAt: string;
 
@@ -34,7 +35,53 @@ export type ProductPerformance = {
   realisedMargin: number;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const fetch: typeof globalThis.fetch = (input, init) =>
+  globalThis.fetch(input, { ...init, credentials: "include" });
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export async function login(username: string, password: string): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!response.ok) {
+    throw new ApiError(
+      await errorMessage(response, "Unable to sign in"),
+      response.status,
+    );
+  }
+}
+
+export async function getAuthSession(): Promise<boolean> {
+  const response = await fetch(`${API_URL}/auth/session`);
+  if (response.status === 401) return false;
+  if (!response.ok) {
+    throw new ApiError(
+      await errorMessage(response, "Unable to verify session"),
+      response.status,
+    );
+  }
+  return true;
+}
+
+export async function logout(): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/logout`, { method: "POST" });
+  if (!response.ok) {
+    throw new ApiError(await errorMessage(response, "Unable to log out"), response.status);
+  }
+}
 
 export type ProductsResponse = {
   products: Product[];
@@ -81,6 +128,7 @@ export type CreateProductData = {
   cost: number;
   stock: number;
   imageUrl?: string;
+  campaigns?: CampaignReference[];
 };
 
 export async function createProduct(
@@ -137,6 +185,217 @@ export async function updateProduct(
     throw new Error("Failed to update product");
   }
 
+  return response.json();
+}
+
+export type CampaignReference = {
+  key: string;
+  store: "viora" | "trendora";
+  accountId: string;
+  campaign: string;
+};
+
+export type CampaignCatalogItem = CampaignReference & {
+  accountKey: AdAccountKey | null;
+  accountName: string;
+  platform: string;
+  spend: number;
+  messages: number;
+  clicks: number;
+  costPerMessage: number | null;
+  linkedProductCount: number;
+};
+
+export type CampaignCatalogResponse = {
+  campaigns: CampaignCatalogItem[];
+  pagination: {
+    currentPage: number;
+    limit: number;
+    totalCampaigns: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+export async function getCampaignCatalog(params: {
+  page: number;
+  limit: number;
+  search?: string;
+}): Promise<CampaignCatalogResponse> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  });
+  if (params.search) query.set("search", params.search);
+  const response = await fetch(`${API_URL}/advertising/campaigns?${query}`);
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, "Failed to fetch campaigns"));
+  }
+  return response.json();
+}
+
+export type CampaignProductsResponse = {
+  campaign: CampaignCatalogItem;
+  products: Array<
+    Pick<Product, "_id" | "name" | "category" | "imageUrl" | "price" | "cost" | "stock"> & {
+      linked: boolean;
+      allocation: number | null;
+    }
+  >;
+  pagination: {
+    currentPage: number;
+    limit: number;
+    totalProducts: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+export async function getCampaignProducts(
+  key: string,
+  page: number,
+  limit: number,
+  search = "",
+): Promise<CampaignProductsResponse> {
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (search) query.set("search", search);
+  const response = await fetch(
+    `${API_URL}/advertising/campaigns/${encodeURIComponent(key)}/products?${query}`,
+  );
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, "Failed to fetch campaign"));
+  }
+  return response.json();
+}
+
+export async function linkProductCampaign(
+  productId: string,
+  campaign: CampaignReference,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/products/${productId}/campaigns`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(campaign),
+  });
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, "Failed to link campaign"));
+  }
+}
+
+export async function unlinkProductCampaign(
+  productId: string,
+  campaign: CampaignReference,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/products/${productId}/campaigns`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(campaign),
+  });
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, "Failed to unlink campaign"));
+  }
+}
+
+export type ProductProfitabilityResponse = {
+  product: Pick<
+    Product,
+    "_id" | "name" | "category" | "imageUrl" | "price" | "cost" | "stock"
+  >;
+  overview: {
+    campaignCount: number;
+    totalOrders: number;
+    unitsSold: number;
+    outOfStock: boolean;
+    lowStock: boolean;
+  };
+  sales: {
+    deliveredOrders: number;
+    unitsSold: number;
+    revenue: number;
+    productCost: number;
+    deliveryCost: number;
+    averageSellingPrice: number;
+    pendingOrders: number;
+    pendingUnits: number;
+    cancelledOrders: number;
+    cancelledUnits: number;
+  };
+  inventory: {
+    currentStock: number;
+    costPerUnit: number;
+    inventoryValue: number;
+  };
+  campaigns: Array<
+    CampaignReference & {
+      accountKey: AdAccountKey | null;
+      accountName: string;
+      platform: string;
+      spend: number;
+      messages: number;
+      clicks: number;
+      linkedProductCount: number;
+      allocation: number;
+    }
+  >;
+  advertising: { totalAllocated: number };
+  profit: {
+    revenue: number;
+    productCost: number;
+    deliveryCost: number;
+    advertisingCost: number;
+    beforeAdsProfit: number;
+    netProfit: number;
+    marginPercent: number;
+    state: "noSales" | "profitable" | "loss" | "breakEven";
+  };
+  orders: {
+    status: "all" | OrderStatus;
+    rows: Array<{
+      orderNumber: number | null;
+      orderId: string;
+      createdAt: string;
+      status: OrderStatus;
+      quantity: number;
+      revenue: number;
+      cost: number;
+      unitPrice: number;
+      unitCost: number;
+    }>;
+    pagination: {
+      currentPage: number;
+      limit: number;
+      totalOrders: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+    };
+  };
+};
+
+export async function getProductProfitability(
+  productId: string,
+  page: number,
+  limit: number,
+  status: "all" | OrderStatus,
+): Promise<ProductProfitabilityResponse> {
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    status,
+  });
+  const response = await fetch(
+    `${API_URL}/products/${productId}/performance?${query}`,
+  );
+  if (!response.ok) {
+    throw new Error(
+      await errorMessage(response, "Failed to fetch product profitability"),
+    );
+  }
   return response.json();
 }
 
@@ -420,7 +679,7 @@ export type AdSource = {
 };
 
 /** One campaign, aggregated over ALL stored days. */
-export type AdCampaign = {
+export type AdCampaign = CampaignReference & {
   campaign: string;
   spend: number;
   messages: number;
@@ -474,7 +733,7 @@ export async function getAdSummary(): Promise<AdSummary> {
  * counted exactly once).
  */
 export type AdPerformanceResponse = {
-  range: 7 | 30;
+  range: "all" | 7 | 30;
   summary: {
     deliveredOrders: number;
     productSales: number;
@@ -520,7 +779,7 @@ export type AdPerformanceResponse = {
 };
 
 export async function getAdPerformance(
-  range: 7 | 30,
+  range: "all" | 7 | 30,
 ): Promise<AdPerformanceResponse> {
   const response = await fetch(
     `${API_URL}/advertising/performance?range=${range}`,
@@ -628,6 +887,7 @@ export type OrderItem = {
 
 export type Order = {
   _id: string;
+  orderNumber?: number | null;
   customer: string;
   phone: string;
   items: OrderItem[];
@@ -812,7 +1072,7 @@ export type ReportOrderStatus = {
 };
 
 export type ReportsResponse = {
-  range: number;
+  range: "all" | 7 | 30;
 
   summary: {
     /** Delivered orders only. Excludes deliveryCharged. */
@@ -861,7 +1121,9 @@ export type ReportsResponse = {
   orderStatus: ReportOrderStatus[];
 };
 
-export async function getReports(range = 7): Promise<ReportsResponse> {
+export async function getReports(
+  range: "all" | 7 | 30 = "all",
+): Promise<ReportsResponse> {
   const response = await fetch(`${API_URL}/reports?range=${range}`);
 
   if (!response.ok) {

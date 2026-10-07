@@ -12,7 +12,14 @@
     "label": "Change theme (current: {current})",
     "light": "Light",
     "dark": "Dark",
-    "viora": "Viora"
+    "viora": "Viora",
+    "shadcnLight": "Shadcn light",
+    "shadcnDark": "Shadcn dark",
+    "nord": "Nord",
+    "dracula": "Dracula",
+    "tokyoNight": "Tokyo Night",
+    "catppuccin": "Catppuccin",
+    "oneDark": "One Dark"
   },
   "sidebar": {
     "toggle": "Toggle Sidebar",
@@ -44,7 +51,9 @@
     "deleteOrder": "Delete Order",
     "editProduct": "Edit Product",
     "advertising": "Advertising",
-    "productDetail": "Product"
+    "productDetail": "Product",
+    "productPerformance": "Profitability",
+    "campaignDetails": "Campaign"
   },
   "common": {
     "save": "Save",
@@ -79,8 +88,13 @@
     "hidePassword": "Hide password",
     "required": "Please enter your username and password.",
     "invalid": "Invalid username or password.",
+    "rateLimited": "Too many attempts. Please wait before trying again.",
+    "unavailable": "Sign-in is temporarily unavailable. Please try again.",
     "signingIn": "Signing in…",
     "signIn": "Sign In"
+  },
+  "authGuard": {
+    "unavailable": "Your session could not be verified. Please refresh or sign in again."
   },
   "errors": {
     "title": "Something went wrong",
@@ -111,9 +125,14 @@
     "updateAdvertising": "Failed to update the advertising expense. Please try again.",
     "deleteAdvertising": "Failed to delete the advertising expense. Please try again.",
     "productStats": "We couldn't load this product's numbers right now. Please try again.",
+    "productPerformance": "We couldn't load this product's profitability. Please try again.",
+    "campaignDetails": "We couldn't load this campaign. Please try again.",
+    "campaignLink": "Failed to update the campaign link. Please try again.",
+    "campaignUnlink": "Failed to update the campaign link. Please try again.",
     "previewWindsor": "We couldn't load the Windsor data right now. Please try again.",
     "syncWindsor": "Failed to sync from Windsor. Please try again.",
-    "fetchInsights": "We couldn't load ad performance right now. Please try again."
+    "fetchInsights": "We couldn't load ad performance right now. Please try again.",
+    "logout": "Unable to sign out. Please try again."
   },
   "dashboard": {
     "title": "Overview",
@@ -165,6 +184,8 @@
     "tableSales": "Sales",
     "tableProfit": "Profit",
     "tableAvgPrice": "Avg price",
+    "campaignCount": "{count, plural, one {# campaign} other {# campaigns}}",
+    "profitabilityLink": "Lifetime profitability",
     "performanceNote": "Sales and profit count delivered orders only",
     "noSalesYet": "No sales yet",
     "inStock": "In stock",
@@ -273,6 +294,94 @@
       "deleting": "Deleting...",
       "view": "View details"
     }
+  },
+  "productCampaigns": {
+    "title": "Advertising campaigns",
+    "description": "Link this product to any campaigns it supports. Campaigns remain linked to every selected product.",
+    "search": "Search campaigns",
+    "selected": "Selected campaigns",
+    "remove": "Remove {name}",
+    "loading": "Loading campaigns...",
+    "loadError": "Campaigns could not be loaded.",
+    "retry": "Retry",
+    "linkedCount": "{count} linked products",
+    "notLinked": "No linked products",
+    "noResults": "No campaigns match your search.",
+    "noCampaigns": "No advertising campaigns are available yet."
+  },
+  "productProfitability": {
+    "back": "Back to products",
+    "lifetime": "All-time profitability",
+    "ordersCount": "{count} total orders",
+    "productDetails": "Product details",
+    "currentPrice": "Current selling price",
+    "currentCost": "Current product cost",
+    "currentStock": "Current stock",
+    "linkedCampaignCount": "Linked campaigns",
+    "revenue": "Delivered product revenue",
+    "productCost": "Historical product cost",
+    "deliveryCost": "Allocated delivery cost",
+    "advertisingCost": "Allocated advertising",
+    "netProfit": "Net profit after advertising",
+    "margin": "Net margin",
+    "states": {
+      "noSales": "No sales",
+      "profitable": "Profitable",
+      "loss": "Loss",
+      "breakEven": "Break-even"
+    },
+    "deliveredOrders": "Delivered orders",
+    "unitsSold": "Units sold",
+    "inventoryValue": "Current inventory value",
+    "pendingOrders": "Pending orders",
+    "cancelledOrders": "Cancelled orders",
+    "campaigns": "Linked campaigns",
+    "campaignsDescription": "Campaign spend is split equally across its linked products, with cent-exact allocation.",
+    "noCampaigns": "No campaigns are linked to this product.",
+    "linkedProducts": "{count} products",
+    "campaignSpend": "Campaign spend",
+    "productAllocation": "This product's share",
+    "orders": "Historical orders",
+    "ordersDescription": "Revenue and unit cost use the price and cost saved on each order item.",
+    "filterOrders": "Filter orders by status",
+    "noOrders": "No orders match this status.",
+    "unitsValue": "{count} units",
+    "order": "Order",
+    "date": "Date",
+    "status": "Status",
+    "quantity": "Quantity",
+    "historicalUnitPrice": "Historical unit price",
+    "historicalUnitCost": "Historical unit cost",
+    "orderRevenue": "Product revenue",
+    "orderProductCost": "Product cost",
+    "statuses": {
+      "Delivered": "Delivered",
+      "Pending": "Pending",
+      "Cancelled": "Cancelled",
+      "all": "All statuses"
+    }
+  },
+  "campaignDetails": {
+    "back": "Back to advertising",
+    "accounts": {
+      "viora": "Viora",
+      "trendora_facebook": "Trendora — Facebook",
+      "trendora_instagram": "Trendora — Instagram",
+      "trendora_other": "Trendora — Other"
+    },
+    "spend": "All-time spend",
+    "messages": "Messages",
+    "clicks": "Clicks",
+    "costPerMessage": "Cost per message",
+    "linkedCount": "Linked products",
+    "productsTitle": "Product links",
+    "productsDescription": "Link or unlink products without changing campaign spend.",
+    "search": "Search products",
+    "noResults": "No products match your search.",
+    "noProducts": "No products are available.",
+    "stock": "Stock: {count}",
+    "link": "Link product",
+    "unlink": "Unlink product"
   },
   "orders": {
     "title": "Orders",
@@ -412,6 +521,8 @@
     "title": "Reports",
     "description": "Sales, profit, and order performance for your business.",
     "days": "{count, plural, one {# day} other {# days}}",
+    "allAvailableData": "All available data",
+    "salesProfitAllTime": "Daily product sales and profit across all available history.",
     "emptyTitle": "No report data yet",
     "emptyDescription": "Reports will appear here once you start creating orders.",
     "newOrder": "New Order",
@@ -523,6 +634,7 @@
     "performanceTitle": "Ad performance",
     "performanceDescription": "Is the advertising paying for itself? Delivered orders only.",
     "days": "{count, plural, one {# day} other {# days}}",
+    "allAvailableData": "All available data",
     "spend": "Spend",
     "messages": "Messages",
     "clicks": "Clicks",

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { Check, Moon, Palette, Sparkles, Sun, } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useTranslations } from "next-intl";
@@ -13,6 +14,18 @@ import {
 
 import { Button } from "@/components/ui/button";
 
+function subscribeToMount() {
+  return () => {};
+}
+
+function getClientMountSnapshot() {
+  return true;
+}
+
+function getServerMountSnapshot() {
+  return false;
+}
+
 const themes = [
   {
     value: "light",
@@ -21,12 +34,12 @@ const themes = [
   },
   {
     value: "shadcn-light",
-    labelKey: "shadcn light",
+    labelKey: "shadcnLight",
     icon: Palette,
   },
   {
     value: "shadcn-dark",
-    labelKey: "shadcn dark",
+    labelKey: "shadcnDark",
     icon: Palette,
   },
 
@@ -71,11 +84,18 @@ const themes = [
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
   const t = useTranslations("theme");
+  const mounted = useSyncExternalStore(
+    subscribeToMount,
+    getClientMountSnapshot,
+    getServerMountSnapshot,
+  );
 
-  const active = themes.find((item) => item.value === theme) ?? themes[0];
+  const active = mounted
+    ? themes.find((item) => item.value === theme) ?? themes[0]
+    : themes[0];
 
   const ActiveIcon = active.icon;
-  const activeLabel = active.labelKey;
+  const activeLabel = t(active.labelKey);
 
   return (
     <DropdownMenu>
@@ -85,7 +105,7 @@ export function ThemeSwitcher() {
             variant="ghost"
             size="icon"
             className="size-9"
-            aria-label={activeLabel}
+            aria-label={t("label", { current: activeLabel })}
           >
             <ActiveIcon className="size-4" />
           </Button>
@@ -106,7 +126,7 @@ export function ThemeSwitcher() {
             >
               <Icon className="size-4" />
 
-              <span className="flex-1">{item.labelKey}</span>
+              <span className="flex-1">{t(item.labelKey)}</span>
 
               {isActive && <Check className="size-4 text-primary" />}
             </DropdownMenuItem>

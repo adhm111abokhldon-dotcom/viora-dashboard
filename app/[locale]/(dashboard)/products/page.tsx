@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import {
   AlertTriangle,
+  BarChart3,
   Boxes,
   ImageIcon,
   Package,
@@ -359,14 +360,14 @@ export default function ProductsPage() {
                 <div className="hidden md:block">
                   <div className="max-h-170 overflow-y-auto overflow-x-hidden">
                     {/* Table Header */}
-                    <div className="sticky top-0 z-10 grid grid-cols-[minmax(200px,2fr)_minmax(80px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(90px,1fr)_48px] items-center gap-4 border-b border-border bg-card px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <div className="sticky top-0 z-10 grid grid-cols-[minmax(200px,2fr)_minmax(80px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(90px,1fr)_80px] items-center gap-4 border-b border-border bg-card px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <span>{t("tableProduct")}</span>
                       <span className="text-end">{t("tableUnitsSold")}</span>
                       <span className="text-end">{t("tableSales")}</span>
                       <span className="text-end">{t("tableProfit")}</span>
                       <span className="text-end">{t("tableAvgPrice")}</span>
                       <span>{t("tableStock")}</span>
-                      <span />
+                      <span>{t("profitabilityLink")}</span>
                     </div>
 
                     {products.map((product: Product) => {
@@ -378,7 +379,7 @@ export default function ProductsPage() {
                       return (
                         <div
                           key={product._id}
-                          className="grid grid-cols-[minmax(200px,2fr)_minmax(80px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(90px,1fr)_48px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0"
+                          className="grid grid-cols-[minmax(200px,2fr)_minmax(80px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(95px,1fr)_minmax(90px,1fr)_80px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0"
                         >
                           {/* Product */}
                           <Link
@@ -394,7 +395,10 @@ export default function ProductsPage() {
 
                               <p className="truncate text-xs text-muted-foreground">
                                 {categoryLabel(product.category)} ·{" "}
-                                {formatCurrency(product.price, locale)}
+                                {formatCurrency(product.price, locale)} ·{" "}
+                                {t("campaignCount", {
+                                  count: product.campaigns?.length ?? 0,
+                                })}
                               </p>
                             </div>
                           </Link>
@@ -461,7 +465,19 @@ export default function ProductsPage() {
                           </div>
 
                           {/* Actions */}
-                          <div className="flex justify-end">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              nativeButton={false}
+                              variant="ghost"
+                              size="icon"
+                              render={
+                                <Link href={`/products/${product._id}/performance`} />
+                              }
+                              aria-label={t("profitabilityLink")}
+                              title={t("profitabilityLink")}
+                            >
+                              <BarChart3 className="size-4" />
+                            </Button>
                             <ProductActions
                               product={product}
                               onDelete={handleDelete}
@@ -498,9 +514,24 @@ export default function ProductsPage() {
 
                               <p className="truncate text-xs text-muted-foreground">
                                 {categoryLabel(product.category)} ·{" "}
-                                {formatCurrency(product.price, locale)}
+                                {formatCurrency(product.price, locale)} ·{" "}
+                                {t("campaignCount", {
+                                  count: product.campaigns?.length ?? 0,
+                                })}
                               </p>
                             </div>
+
+                            <Button
+                              nativeButton={false}
+                              variant="outline"
+                              className="w-full"
+                              render={
+                                <Link href={`/products/${product._id}/performance`} />
+                              }
+                            >
+                              <BarChart3 className="size-4" />
+                              {t("profitabilityLink")}
+                            </Button>
                           </Link>
 
                           <ProductActions

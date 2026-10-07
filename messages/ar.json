@@ -12,7 +12,14 @@
     "label": "تغيير المظهر (الحالي: {current})",
     "light": "فاتح",
     "dark": "داكن",
-    "viora": "Viora"
+    "viora": "Viora",
+    "shadcnLight": "Shadcn فاتح",
+    "shadcnDark": "Shadcn داكن",
+    "nord": "Nord",
+    "dracula": "Dracula",
+    "tokyoNight": "Tokyo Night",
+    "catppuccin": "Catppuccin",
+    "oneDark": "One Dark"
   },
   "sidebar": {
     "toggle": "إظهار/إخفاء الشريط الجانبي",
@@ -44,7 +51,9 @@
     "deleteOrder": "حذف الطلب",
     "editProduct": "تعديل المنتج",
     "advertising": "الإعلانات",
-    "productDetail": "المنتج"
+    "productDetail": "المنتج",
+    "productPerformance": "الربحية",
+    "campaignDetails": "الحملة"
   },
   "common": {
     "save": "حفظ",
@@ -79,8 +88,13 @@
     "hidePassword": "إخفاء كلمة المرور",
     "required": "يرجى إدخال اسم المستخدم وكلمة المرور",
     "invalid": "اسم المستخدم أو كلمة المرور غير صحيحة",
+    "rateLimited": "محاولات كثيرة. يرجى الانتظار قبل المحاولة مجدداً.",
+    "unavailable": "تسجيل الدخول غير متاح مؤقتاً. يرجى المحاولة مجدداً.",
     "signingIn": "جارٍ تسجيل الدخول…",
     "signIn": "تسجيل الدخول"
+  },
+  "authGuard": {
+    "unavailable": "تعذّر التحقق من جلستك. يرجى تحديث الصفحة أو تسجيل الدخول مجدداً."
   },
   "errors": {
     "title": "حدث خطأ ما",
@@ -111,9 +125,14 @@
     "updateAdvertising": "فشل تحديث المصروف الإعلاني. حاول مرة أخرى.",
     "deleteAdvertising": "فشل حذف المصروف الإعلاني. حاول مرة أخرى.",
     "productStats": "تعذر تحميل أرقام هذا المنتج حالياً. حاول مرة أخرى.",
+    "productPerformance": "تعذّر تحميل ربحية هذا المنتج. يرجى المحاولة مجدداً.",
+    "campaignDetails": "تعذّر تحميل هذه الحملة. يرجى المحاولة مجدداً.",
+    "campaignLink": "تعذّر تحديث ارتباط الحملة. يرجى المحاولة مجدداً.",
+    "campaignUnlink": "تعذّر تحديث ارتباط الحملة. يرجى المحاولة مجدداً.",
     "previewWindsor": "تعذر تحميل بيانات ويندور حالياً. حاول مرة أخرى.",
     "syncWindsor": "فشلت المزامنة من ويندور. حاول مرة أخرى.",
-    "fetchInsights": "تعذر تحميل أداء الإعلانات حالياً. حاول مرة أخرى."
+    "fetchInsights": "تعذر تحميل أداء الإعلانات حالياً. حاول مرة أخرى.",
+    "logout": "تعذّر تسجيل الخروج. يرجى المحاولة مجدداً."
   },
   "dashboard": {
     "title": "نظرة عامة",
@@ -218,6 +237,8 @@
     "tableSales": "المبيعات",
     "tableProfit": "الربح",
     "tableAvgPrice": "متوسط السعر",
+    "campaignCount": "{count, plural, zero {لا حملات} one {حملة واحدة} two {حملتان} few {# حملات} many {# حملة} other {# حملة}}",
+    "profitabilityLink": "الربحية طوال الفترة",
     "performanceNote": "المبيعات والربح تحسب من الطلبات المسلّمة فقط",
     "noSalesYet": "لا مبيعات بعد",
     "detail": {
@@ -273,6 +294,94 @@
       "qtyTimesPrice": "{qty} × {price}",
       "lineCost": "التكلفة {amount}"
     }
+  },
+  "productCampaigns": {
+    "title": "الحملات الإعلانية",
+    "description": "اربط هذا المنتج بالحملات التي تخصه. يمكن ربط الحملة بأكثر من منتج.",
+    "search": "البحث عن الحملات",
+    "selected": "الحملات المحددة",
+    "remove": "إزالة {name}",
+    "loading": "جارٍ تحميل الحملات...",
+    "loadError": "تعذّر تحميل الحملات.",
+    "retry": "إعادة المحاولة",
+    "linkedCount": "{count} منتجات مرتبطة",
+    "notLinked": "لا توجد منتجات مرتبطة",
+    "noResults": "لا توجد حملات مطابقة للبحث.",
+    "noCampaigns": "لا توجد حملات إعلانية متاحة بعد."
+  },
+  "productProfitability": {
+    "back": "العودة إلى المنتجات",
+    "lifetime": "الربحية طوال الفترة",
+    "ordersCount": "{count} طلب إجمالاً",
+    "productDetails": "تفاصيل المنتج",
+    "currentPrice": "سعر البيع الحالي",
+    "currentCost": "كلفة المنتج الحالية",
+    "currentStock": "المخزون الحالي",
+    "linkedCampaignCount": "الحملات المرتبطة",
+    "revenue": "إيرادات المنتجات المسلّمة",
+    "productCost": "كلفة المنتجات التاريخية",
+    "deliveryCost": "حصة كلفة التوصيل",
+    "advertisingCost": "حصة الإعلانات",
+    "netProfit": "صافي الربح بعد الإعلانات",
+    "margin": "هامش صافي الربح",
+    "states": {
+      "noSales": "لا توجد مبيعات",
+      "profitable": "مربح",
+      "loss": "خسارة",
+      "breakEven": "نقطة التعادل"
+    },
+    "deliveredOrders": "الطلبات المسلّمة",
+    "unitsSold": "الكمية المباعة",
+    "inventoryValue": "قيمة المخزون الحالي",
+    "pendingOrders": "الطلبات المعلّقة",
+    "cancelledOrders": "الطلبات الملغاة",
+    "campaigns": "الحملات المرتبطة",
+    "campaignsDescription": "يُقسّم إنفاق الحملة بالتساوي على المنتجات المرتبطة بها مع توزيع دقيق للسنتات.",
+    "noCampaigns": "لا توجد حملات مرتبطة بهذا المنتج.",
+    "linkedProducts": "{count} منتجات",
+    "campaignSpend": "إنفاق الحملة",
+    "productAllocation": "حصة هذا المنتج",
+    "orders": "الطلبات السابقة",
+    "ordersDescription": "تستخدم الإيرادات وكلفة الوحدة السعر والكلفة المحفوظين في كل طلب.",
+    "filterOrders": "تصفية الطلبات حسب الحالة",
+    "noOrders": "لا توجد طلبات بهذه الحالة.",
+    "unitsValue": "{count} وحدات",
+    "order": "الطلب",
+    "date": "التاريخ",
+    "status": "الحالة",
+    "quantity": "الكمية",
+    "historicalUnitPrice": "سعر الوحدة التاريخي",
+    "historicalUnitCost": "كلفة الوحدة التاريخية",
+    "orderRevenue": "إيرادات المنتج",
+    "orderProductCost": "كلفة المنتج",
+    "statuses": {
+      "Delivered": "تم التسليم",
+      "Pending": "قيد الانتظار",
+      "Cancelled": "ملغى",
+      "all": "كل الحالات"
+    }
+  },
+  "campaignDetails": {
+    "back": "العودة إلى الإعلانات",
+    "accounts": {
+      "viora": "Viora",
+      "trendora_facebook": "Trendora — فيسبوك",
+      "trendora_instagram": "Trendora — إنستغرام",
+      "trendora_other": "Trendora — أخرى"
+    },
+    "spend": "الإنفاق طوال الفترة",
+    "messages": "الرسائل",
+    "clicks": "النقرات",
+    "costPerMessage": "التكلفة لكل رسالة",
+    "linkedCount": "المنتجات المرتبطة",
+    "productsTitle": "روابط المنتجات",
+    "productsDescription": "اربط المنتجات أو أزل ارتباطها دون تغيير إنفاق الحملة.",
+    "search": "البحث عن المنتجات",
+    "noResults": "لا توجد منتجات مطابقة للبحث.",
+    "noProducts": "لا توجد منتجات متاحة.",
+    "stock": "المخزون: {count}",
+    "link": "ربط المنتج",
+    "unlink": "إلغاء الربط"
   },
   "orders": {
     "title": "الطلبات",
@@ -412,6 +521,8 @@
     "title": "التقارير",
     "description": "المبيعات والأرباح وأداء الطلبات لأعمالك",
     "days": "{count, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يوماً} other {# يوم}}",
+    "allAvailableData": "كل البيانات المتاحة",
+    "salesProfitAllTime": "مبيعات المنتجات وأرباحها اليومية عبر كامل السجل المتاح.",
     "emptyTitle": "لا توجد بيانات تقارير بعد",
     "emptyDescription": "ستظهر التقارير هنا بمجرد أن تبدأ بإنشاء الطلبات",
     "newOrder": "طلب جديد",
@@ -523,6 +634,7 @@
     "performanceTitle": "أداء الإعلانات",
     "performanceDescription": "هل تغطي الإعلانات تكلفتها؟ الطلبات المسلّمة فقط.",
     "days": "{count, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يوماً} other {# يوم}}",
+    "allAvailableData": "كل البيانات المتاحة",
     "spend": "الإنفاق",
     "messages": "الرسائل",
     "clicks": "النقرات",

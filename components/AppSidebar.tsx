@@ -33,9 +33,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import Image from "next/image";
+import { logout } from "@/lib/api";
+import { useAppToast } from "@/lib/toast";
 
 const navigation = [
   {
@@ -69,10 +71,15 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("nav");
+  const toast = useAppToast();
 
-  function handleLogout() {
-    sessionStorage.removeItem("isLoggedIn");
-    router.replace("/");
+  async function handleLogout() {
+    try {
+      await logout();
+      router.replace("/");
+    } catch (error) {
+      toast.error(error, "logout");
+    }
   }
 
   return (

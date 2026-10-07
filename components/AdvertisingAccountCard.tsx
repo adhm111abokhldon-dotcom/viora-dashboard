@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import type { AdAccountSummary } from "@/lib/api";
+import { Link } from "@/i18n/navigation";
 
 /**
  * One business advertising account - Viora, Trendora — Facebook or
@@ -69,38 +70,40 @@ export default function AdvertisingAccountCard({
           ) : (
             <ul className="divide-y divide-border">
               {account.campaigns.map((campaign) => (
-                <li
-                  key={campaign.campaign}
-                  className="flex items-start justify-between gap-3 py-3"
-                >
-                  <div className="min-w-0">
-                    <p
-                      className="truncate text-sm font-medium"
-                      title={campaign.campaign}
-                    >
-                      {campaign.campaign || "—"}
-                    </p>
+                <li key={campaign.key}>
+                  <Link
+                    href={`/advertising/campaigns/${encodeURIComponent(campaign.key)}`}
+                    className="flex items-start justify-between gap-3 rounded-md py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <div className="min-w-0">
+                      <p
+                        className="truncate text-sm font-medium"
+                        title={campaign.campaign}
+                      >
+                        {campaign.campaign || "—"}
+                      </p>
 
-                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                      {t("messagesAndClicks", {
-                        messages: formatNumber(campaign.messages, locale),
-                        clicks: formatNumber(campaign.clicks, locale),
-                      })}
-                    </p>
-                  </div>
+                      <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                        {t("messagesAndClicks", {
+                          messages: formatNumber(campaign.messages, locale),
+                          clicks: formatNumber(campaign.clicks, locale),
+                        })}
+                      </p>
+                    </div>
 
-                  <div className="shrink-0 text-end">
-                    <p className="text-sm font-semibold tabular-nums">
-                      {formatCurrency(campaign.spend, locale)}
-                    </p>
+                    <div className="shrink-0 text-end">
+                      <p className="text-sm font-semibold tabular-nums">
+                        {formatCurrency(campaign.spend, locale)}
+                      </p>
 
-                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                      {t("cpmShort")}{" "}
-                      {campaign.costPerMessage === null
-                        ? "—"
-                        : formatCurrency(campaign.costPerMessage, locale)}
-                    </p>
-                  </div>
+                      <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                        {t("cpmShort")}{" "}
+                        {campaign.costPerMessage === null
+                          ? "—"
+                          : formatCurrency(campaign.costPerMessage, locale)}
+                      </p>
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -31,6 +31,7 @@ export const BUSINESS_QUERY_ROOTS = [
   "products",
   "product",
   "productStats",
+  "productProfitability",
   "reports",
   "dashboard",
   // The paginated advertising records (manual expenses + filters).
@@ -39,6 +40,8 @@ export const BUSINESS_QUERY_ROOTS = [
   "adSummary",
   // Period-scoped Ads-vs-delivered-orders verdict + funnel (7/30 days).
   "adPerformance",
+  "campaignCatalog",
+  "campaignProducts",
 ] as const;
 
 /**

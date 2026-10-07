@@ -46,7 +46,7 @@ import {
   type Order,
   type OrderStatus,
 } from "@/lib/api";
-import { shortId, summarizeItems } from "@/lib/orders";
+import { summarizeItems } from "@/lib/orders";
 import { Pagination } from "@/components/ui/Pagination";
 import ProductsLoading from "@/components/ProductsLoading";
 import OrderActions from "@/components/OrderActions";
@@ -520,7 +520,7 @@ export default function OrdersPage() {
                               {/* Order */}
                               <TableCell className="py-4">
                                 <p className="font-semibold tabular-nums text-text">
-                                  <span dir="ltr">#{shortId(order._id)}</span>
+                                  <span dir="ltr">#{order.orderNumber ?? "—"}</span>
                                 </p>
 
                                 <p className="mt-1 text-xs text-text-muted">
@@ -630,7 +630,7 @@ export default function OrdersPage() {
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-semibold tabular-nums text-text">
-                                  <span dir="ltr">#{shortId(order._id)}</span>
+                                  <span dir="ltr">#{order.orderNumber ?? "—"}</span>
                                 </p>
 
                                 <StatusBadge status={order.status} />

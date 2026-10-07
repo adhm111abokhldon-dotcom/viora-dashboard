@@ -188,7 +188,7 @@ export default function ReportsPage() {
     },
   } satisfies ChartConfig;
 
-  const [range, setRange] = useState(7);
+  const [range, setRange] = useState<"all" | 7 | 30>("all");
 
   const {
     data: reports,
@@ -239,7 +239,7 @@ export default function ReportsPage() {
           description={t("description")}
           actions={
             <div className="inline-flex rounded-md border border-border p-0.5">
-              {[7, 30].map((value) => (
+              {(["all", 7, 30] as const).map((value) => (
                 <Button
                   key={value}
                   type="button"
@@ -247,7 +247,9 @@ export default function ReportsPage() {
                   variant={range === value ? "secondary" : "ghost"}
                   onClick={() => setRange(value)}
                 >
-                  {t("days", { count: value })}
+                  {value === "all"
+                    ? t("allAvailableData")
+                    : t("days", { count: value })}
                 </Button>
               ))}
             </div>
@@ -473,7 +475,9 @@ export default function ReportsPage() {
                 </CardTitle>
 
                 <p className="text-sm text-text-muted">
-                  {t("salesProfitDescription", { range })}
+                  {range === "all"
+                    ? t("salesProfitAllTime")
+                    : t("salesProfitDescription", { range })}
                 </p>
               </CardHeader>
 

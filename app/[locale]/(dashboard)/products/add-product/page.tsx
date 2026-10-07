@@ -18,7 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { createProduct } from "@/lib/api";
+import { createProduct, type CampaignReference } from "@/lib/api";
+import CampaignPicker from "@/components/CampaignPicker";
 import { uploadProductImage } from "@/lib/cloudinary";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { isKnownCategory } from "@/lib/categories";
@@ -53,6 +54,7 @@ export default function AddProductPage() {
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
   const [stock, setStock] = useState("");
+  const [campaigns, setCampaigns] = useState<CampaignReference[]>([]);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -87,6 +89,7 @@ export default function AddProductPage() {
         cost: productCost,
         stock: Number(stock),
         imageUrl,
+        campaigns,
       });
     },
 
@@ -370,6 +373,8 @@ export default function AddProductPage() {
             </div>
           </CardContent>
         </Card>
+
+        <CampaignPicker value={campaigns} onChange={setCampaigns} />
 
         {/* Pricing & Inventory */}
         <Card className="overflow-hidden rounded-lg border border-border bg-card shadow-none">

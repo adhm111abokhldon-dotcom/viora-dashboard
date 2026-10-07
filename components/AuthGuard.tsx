@@ -1,46 +1,49 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
+import { getAuthSession } from "@/lib/api";
 
 type AuthGuardProps = {
   children: React.ReactNode;
 };
 
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-
-  return () => window.removeEventListener("storage", callback);
-}
-
-function getSnapshot(): boolean | null {
-  return sessionStorage.getItem("isLoggedIn") === "true";
-}
-
-// null = not known yet (server / first client render).
-function getServerSnapshot(): boolean | null {
-  return null;
-}
-
 export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-
-  const isLoggedIn = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
+  const t = useTranslations("authGuard");
+  const [state, setState] = useState<"checking" | "authenticated" | "error">(
+    "checking",
   );
 
   useEffect(() => {
-    if (isLoggedIn === false) {
-      router.replace("/");
-    }
-  }, [isLoggedIn, router]);
+    let active = true;
+    getAuthSession()
+      .then((authenticated) => {
+        if (!active) return;
+        if (!authenticated) {
+          router.replace("/");
+          return;
+        }
+        setState("authenticated");
+      })
+      .catch(() => {
+        if (active) setState("error");
+      });
 
-  if (isLoggedIn !== true) {
-    return null;
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  if (state === "error") {
+    return (
+      <main className="flex min-h-svh items-center justify-center px-4 text-center text-sm text-destructive">
+        {t("unavailable")}
+      </main>
+    );
   }
 
+  if (state !== "authenticated") return null;
   return <>{children}</>;
 }
-

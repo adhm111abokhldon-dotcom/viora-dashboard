@@ -104,6 +104,23 @@ function getBreadcrumbs(pathname: string, t: (key: string) => string) {
     return breadcrumbs;
   }
 
+  if (/^\/products\/[^/]+\/performance$/.test(pathname)) {
+    breadcrumbs.push(
+      {
+        key: "products",
+        label: t("products"),
+        href: "/products",
+      },
+      {
+        key: "product-performance",
+        label: t("productPerformance"),
+        href: "",
+      },
+    );
+
+    return breadcrumbs;
+  }
+
   if (pathname === "/orders") {
     breadcrumbs.push({
       key: "orders",
@@ -171,6 +188,23 @@ function getBreadcrumbs(pathname: string, t: (key: string) => string) {
       label: t("advertising"),
       href: "",
     });
+
+    return breadcrumbs;
+  }
+
+  if (/^\/advertising\/campaigns\/.+/.test(pathname)) {
+    breadcrumbs.push(
+      {
+        key: "advertising",
+        label: t("advertising"),
+        href: "/advertising",
+      },
+      {
+        key: "campaign-details",
+        label: t("campaignDetails"),
+        href: "",
+      },
+    );
 
     return breadcrumbs;
   }

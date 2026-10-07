@@ -90,8 +90,8 @@ export default function AdvertisingPage() {
   const [showForm, setShowForm] = useState(false);
   const [expenseToDelete, setExpenseToDelete] =
     useState<AdvertisingExpense | null>(null);
-  // Period for the verdict + funnel: same 7/30 toggle as the Reports page.
-  const [range, setRange] = useState<7 | 30>(7);
+  // All history is the default; shorter analysis windows are user-selected.
+  const [range, setRange] = useState<"all" | 7 | 30>("all");
 
   // Debounced search: every keystroke resets to page 1 only once settled.
   useEffect(() => {
@@ -278,15 +278,17 @@ export default function AdvertisingPage() {
               aria-label={t("performanceTitle")}
               className="inline-flex rounded-md border border-border p-0.5"
             >
-              {[7, 30].map((value) => (
+              {(["all", 7, 30] as const).map((value) => (
                 <Button
                   key={value}
                   type="button"
                   size="sm"
                   variant={range === value ? "secondary" : "ghost"}
-                  onClick={() => setRange(value as 7 | 30)}
+                  onClick={() => setRange(value)}
                 >
-                  {t("days", { count: value })}
+                  {value === "all"
+                    ? t("allAvailableData")
+                    : t("days", { count: value })}
                 </Button>
               ))}
             </div>
@@ -315,7 +317,9 @@ export default function AdvertisingPage() {
                     {t(`verdict.${perf.verdict.type}`)}
                   </span>
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {t("days", { count: perf.range })}
+                    {perf.range === "all"
+                      ? t("allAvailableData")
+                      : t("days", { count: perf.range })}
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">
