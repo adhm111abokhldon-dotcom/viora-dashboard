@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { getAuthSession } from "@/lib/api";
+import { hasLocalSession } from "@/lib/fakeAuth";
 
 type AuthGuardProps = {
   children: React.ReactNode;
@@ -18,7 +18,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
   useEffect(() => {
     let active = true;
-    getAuthSession()
+    Promise.resolve()
+      .then(() => hasLocalSession())
       .then((authenticated) => {
         if (!active) return;
         if (!authenticated) {

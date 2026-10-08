@@ -390,6 +390,9 @@ export default function ProductsPage() {
 
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold">
+                                <span dir="ltr" className="me-1 text-muted-foreground">
+                                  #{product.productNumber}
+                                </span>
                                 {product.name}
                               </p>
 
@@ -509,6 +512,9 @@ export default function ProductsPage() {
 
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold">
+                                <span dir="ltr" className="me-1 text-muted-foreground">
+                                  #{product.productNumber}
+                                </span>
                                 {product.name}
                               </p>
 
@@ -521,18 +527,18 @@ export default function ProductsPage() {
                               </p>
                             </div>
 
-                            <Button
-                              nativeButton={false}
-                              variant="outline"
-                              className="w-full"
-                              render={
-                                <Link href={`/products/${product._id}/performance`} />
-                              }
-                            >
-                              <BarChart3 className="size-4" />
-                              {t("profitabilityLink")}
-                            </Button>
                           </Link>
+                          <Button
+                            nativeButton={false}
+                            variant="outline"
+                            className="w-full"
+                            render={
+                              <Link href={`/products/${product._id}/performance`} />
+                            }
+                          >
+                            <BarChart3 className="size-4" />
+                            {t("profitabilityLink")}
+                          </Button>
 
                           <ProductActions
                             product={product}

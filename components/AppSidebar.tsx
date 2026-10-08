@@ -36,8 +36,8 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import Image from "next/image";
-import { logout } from "@/lib/api";
 import { useAppToast } from "@/lib/toast";
+import { endLocalSession } from "@/lib/fakeAuth";
 
 const navigation = [
   {
@@ -75,7 +75,7 @@ export function AppSidebar() {
 
   async function handleLogout() {
     try {
-      await logout();
+      endLocalSession();
       router.replace("/");
     } catch (error) {
       toast.error(error, "logout");

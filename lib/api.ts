@@ -1,5 +1,6 @@
 export type Product = {
   _id: string;
+  productNumber: number;
   name: string;
   category: string;
   price: number;
@@ -37,8 +38,7 @@ export type ProductPerformance = {
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
-const fetch: typeof globalThis.fetch = (input, init) =>
-  globalThis.fetch(input, { ...init, credentials: "include" });
+const fetch: typeof globalThis.fetch = globalThis.fetch;
 
 export class ApiError extends Error {
   constructor(
@@ -47,39 +47,6 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = "ApiError";
-  }
-}
-
-export async function login(username: string, password: string): Promise<void> {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!response.ok) {
-    throw new ApiError(
-      await errorMessage(response, "Unable to sign in"),
-      response.status,
-    );
-  }
-}
-
-export async function getAuthSession(): Promise<boolean> {
-  const response = await fetch(`${API_URL}/auth/session`);
-  if (response.status === 401) return false;
-  if (!response.ok) {
-    throw new ApiError(
-      await errorMessage(response, "Unable to verify session"),
-      response.status,
-    );
-  }
-  return true;
-}
-
-export async function logout(): Promise<void> {
-  const response = await fetch(`${API_URL}/auth/logout`, { method: "POST" });
-  if (!response.ok) {
-    throw new ApiError(await errorMessage(response, "Unable to log out"), response.status);
   }
 }
 
@@ -196,10 +163,25 @@ export type CampaignReference = {
 };
 
 export type CampaignCatalogItem = CampaignReference & {
-  accountKey: AdAccountKey | null;
+  accountKey: AdAccountKey;
   accountName: string;
   platform: string;
+  status: string | null;
+  configuredStatus: string | null;
+  providerState: "current" | "historical" | "unknown";
+  catalogState:
+    | "active"
+    | "paused"
+    | "historical"
+    | "deleted"
+    | "unverified"
+    | "other";
+  firstActivity: string | null;
+  lastActivity: string | null;
+  lastSeenAt: string | null;
   spend: number;
+  allocatedSpend: number;
+  unallocatedSpend: number;
   messages: number;
   clicks: number;
   costPerMessage: number | null;
@@ -208,6 +190,10 @@ export type CampaignCatalogItem = CampaignReference & {
 
 export type CampaignCatalogResponse = {
   campaigns: CampaignCatalogItem[];
+  summary: {
+    totalCampaigns: number;
+    stateCounts: Record<CampaignCatalogItem["catalogState"], number>;
+  };
   pagination: {
     currentPage: number;
     limit: number;
@@ -221,12 +207,14 @@ export type CampaignCatalogResponse = {
 export async function getCampaignCatalog(params: {
   page: number;
   limit: number;
+  accountKey?: AdAccountKey;
   search?: string;
 }): Promise<CampaignCatalogResponse> {
   const query = new URLSearchParams({
     page: String(params.page),
     limit: String(params.limit),
   });
+  if (params.accountKey) query.set("accountKey", params.accountKey);
   if (params.search) query.set("search", params.search);
   const response = await fetch(`${API_URL}/advertising/campaigns?${query}`);
   if (!response.ok) {
@@ -237,6 +225,12 @@ export async function getCampaignCatalog(params: {
 
 export type CampaignProductsResponse = {
   campaign: CampaignCatalogItem;
+  historicalAllocations: Array<{
+    productId: string;
+    productName: string;
+    amount: number;
+    linked: boolean;
+  }>;
   products: Array<
     Pick<Product, "_id" | "name" | "category" | "imageUrl" | "price" | "cost" | "stock"> & {
       linked: boolean;
@@ -332,13 +326,14 @@ export type ProductProfitabilityResponse = {
   };
   campaigns: Array<
     CampaignReference & {
-      accountKey: AdAccountKey | null;
+      accountKey: AdAccountKey;
       accountName: string;
       platform: string;
       spend: number;
       messages: number;
       clicks: number;
       linkedProductCount: number;
+      currentlyLinked: boolean;
       allocation: number;
     }
   >;
@@ -417,6 +412,7 @@ export type ProductRecentOrder = {
 export type ProductStatsResponse = {
   product: {
     _id: string;
+    productNumber: number;
     name: string;
     category: string;
     imageUrl?: string;
@@ -650,9 +646,7 @@ export type AdStore = "viora" | "trendora";
 export type AdAccountKey =
   | "viora"
   | "trendora_facebook"
-  | "trendora_instagram"
-  /** Fallback bucket for a Trendora ad account the backend cannot map. */
-  | "trendora_other";
+  | "trendora_instagram";
 
 /** One Windsor ad account discovered during preview / sync. */
 export type AdSource = {
@@ -678,25 +672,16 @@ export type AdSource = {
   empty?: boolean;
 };
 
-/** One campaign, aggregated over ALL stored days. */
-export type AdCampaign = CampaignReference & {
-  campaign: string;
-  spend: number;
-  messages: number;
-  clicks: number;
-  costPerMessage: number | null;
-};
-
 /** One business advertising account with its all-time totals. */
 export type AdAccountSummary = {
   key: AdAccountKey;
+  configured: boolean;
   spend: number;
   messages: number;
   clicks: number;
   costPerMessage: number | null;
   campaignCount: number;
-  /** Highest spend first; fully deterministic order. */
-  campaigns: AdCampaign[];
+  campaignStateCounts: Record<CampaignCatalogItem["catalogState"], number>;
 };
 
 /**
@@ -707,7 +692,7 @@ export type AdSummary = {
   /** Windsor (every account) + manual, counted exactly once each. */
   grandTotal: number;
   manual: { spend: number; count: number };
-  /** Fixed order: viora, trendora_facebook, trendora_instagram (+ fallback). */
+  /** Fixed order: viora, trendora_facebook, trendora_instagram. */
   accounts: AdAccountSummary[];
 };
 
@@ -764,9 +749,10 @@ export type AdPerformanceResponse = {
     breakEvenPerOrder: number | null;
     adSpentPerMessage: number | null;
   };
-  /** Fixed order: viora, trendora_facebook, trendora_instagram (+ fallback). */
+  /** Fixed order: viora, trendora_facebook, trendora_instagram. */
   accounts: Array<{
     key: AdAccountKey;
+    configured: boolean;
     spend: number;
     messages: number;
     accountId: string | null;

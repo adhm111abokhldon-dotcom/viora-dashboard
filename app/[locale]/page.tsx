@@ -21,14 +21,14 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import LogoImg from "@/public/logo.jpeg";
-import { ApiError, login } from "@/lib/api";
+import { startLocalSession } from "@/lib/fakeAuth";
 
 export default function LoginPage() {
   const router = useRouter();
   const t = useTranslations("login");
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("viora");
+  const [password, setPassword] = useState("2004");
 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -43,19 +43,15 @@ export default function LoginPage() {
     }
 
     setError("");
-    setIsSubmitting(true);
-
     try {
-      await login(username.trim(), password);
-      router.push("/dashboard");
-    } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 401) {
+      setIsSubmitting(true);
+      if (!startLocalSession(username, password)) {
         setError(t("invalid"));
-      } else if (cause instanceof ApiError && cause.status === 429) {
-        setError(t("rateLimited"));
-      } else {
-        setError(t("unavailable"));
+        return;
       }
+      router.push("/dashboard");
+    } catch {
+      setError(t("unavailable"));
     } finally {
       setIsSubmitting(false);
     }
@@ -79,6 +75,9 @@ export default function LoginPage() {
 
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t("subtitle")}
+                </p>
+                <p className="mt-2 max-w-sm text-xs text-muted-foreground">
+                  {t("localOnlyWarning")}
                 </p>
               </div>
             </div>
@@ -105,7 +104,7 @@ export default function LoginPage() {
                     value={username}
                     onChange={(event) => {
                       setUsername(event.target.value);
-                      setError("");
+                      setError("")
                     }}
                     placeholder={t("usernamePlaceholder")}
                     className="ps-9"

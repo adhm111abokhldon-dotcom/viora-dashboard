@@ -155,6 +155,13 @@ export default function ProductPerformancePage() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           {campaign.accountName} · {t("linkedProducts", { count: formatNumber(campaign.linkedProductCount, locale) })}
                         </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t(
+                            campaign.currentlyLinked
+                              ? "currentlyLinked"
+                              : "historicallyLinked",
+                          )}
+                        </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:text-end">

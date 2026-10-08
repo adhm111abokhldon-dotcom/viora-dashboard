@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Link2, Link2Off, Search } from "lucide-react";
@@ -29,8 +29,13 @@ export default function CampaignDetailsPage() {
   const t = useTranslations("campaignDetails");
   const te = useTranslations("errors");
   const locale = useLocale() as "en" | "ar";
-  const params = useParams<{ key: string }>();
-  const key = params.key;
+  const pathname = usePathname();
+  let key = "";
+  try {
+    key = decodeURIComponent(pathname.split("/").at(-1) ?? "");
+  } catch {
+    key = "";
+  }
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -70,12 +75,16 @@ export default function CampaignDetailsPage() {
   });
 
   if (query.isLoading) return <ProductsLoading />;
-  if (query.isError || !query.data) {
+  if (!key || query.isError || !query.data) {
     return (
       <div className="mx-auto w-full max-w-400 space-y-6">
         <ErrorState
-          description={apiErrorMessage(query.error, te, te("campaignDetails"))}
-          onRetry={() => void query.refetch()}
+          description={
+            key
+              ? apiErrorMessage(query.error, te, te("campaignDetails"))
+              : t("invalidCampaignKey")
+          }
+          onRetry={key ? () => void query.refetch() : undefined}
         />
       </div>
     );
@@ -98,7 +107,7 @@ export default function CampaignDetailsPage() {
         </Button>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t(`accounts.${campaign.accountKey ?? "trendora_other"}`)}
+            {t(`accounts.${campaign.accountKey}`)}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
             {campaign.campaign}
@@ -106,11 +115,33 @@ export default function CampaignDetailsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             {campaign.accountName} · {campaign.platform}
           </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t(`catalogState.${campaign.catalogState}`)}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t(`providerState.${campaign.providerState}`)}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {campaign.status
+              ? `${t("effectiveStatus")}: ${campaign.status.replaceAll("_", " ")}`
+              : t("statusUnavailable")}
+            {campaign.configuredStatus
+              ? ` · ${t("configuredStatus")}: ${campaign.configuredStatus.replaceAll("_", " ")}`
+              : ""}
+          </p>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label={t("spend")} value={formatCurrency(campaign.spend, locale)} />
+        <Metric
+          label={t("allocatedSpend")}
+          value={formatCurrency(campaign.allocatedSpend, locale)}
+        />
+        <Metric
+          label={t("unallocatedSpend")}
+          value={formatCurrency(campaign.unallocatedSpend, locale)}
+        />
         <Metric label={t("messages")} value={formatNumber(campaign.messages, locale)} />
         <Metric label={t("clicks")} value={formatNumber(campaign.clicks, locale)} />
         <Metric
@@ -122,6 +153,14 @@ export default function CampaignDetailsPage() {
           }
         />
         <Metric label={t("linkedCount")} value={formatNumber(campaign.linkedProductCount, locale)} />
+        <Metric
+          label={t("firstActivity")}
+          value={formatActivityDate(campaign.firstActivity, locale)}
+        />
+        <Metric
+          label={t("lastActivity")}
+          value={formatActivityDate(campaign.lastActivity, locale)}
+        />
       </div>
 
       <Card className="overflow-hidden shadow-none">
@@ -165,8 +204,8 @@ export default function CampaignDetailsPage() {
                         <p className="mt-1 truncate text-xs text-muted-foreground">
                           {product.category} · {formatCurrency(product.price, locale)} ·{" "}
                           {t("stock", { count: formatNumber(product.stock, locale) })}
-                          {product.linked && product.allocation !== null
-                            ? ` · ${t("productAllocation")}: ${formatCurrency(product.allocation, locale)}`
+                          {product.allocation !== null && product.allocation > 0
+                            ? ` · ${t("historicalProductAllocation")}: ${formatCurrency(product.allocation, locale)}`
                             : ""}
                         </p>
                       </Link>
@@ -208,6 +247,42 @@ export default function CampaignDetailsPage() {
           )}
         </CardContent>
       </Card>
+      {query.data.historicalAllocations.length > 0 && (
+        <Card className="shadow-none">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-base">
+              {t("historicalAllocations")}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {t("historicalAllocationsDescription")}
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
+              {query.data.historicalAllocations.map((allocation) => (
+                <li
+                  key={`${allocation.productId}:${allocation.productName}`}
+                  className="flex items-center justify-between gap-3 p-4"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {allocation.productName}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {allocation.linked
+                        ? t("currentlyLinked")
+                        : t("historicallyLinked")}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums">
+                    {formatCurrency(allocation.amount, locale)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -221,4 +296,12 @@ function Metric({ label, value }: { label: string; value: string }) {
       </CardContent>
     </Card>
   );
+}
+
+function formatActivityDate(value: string | null, locale: "en" | "ar") {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat(locale).format(date);
 }

@@ -226,6 +226,9 @@ export default function ProductDetailPage() {
               <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
                 {product.name}
               </h1>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span dir="ltr">#{product.productNumber}</span>
+              </p>
 
               <p className="mt-1 text-sm text-muted-foreground">
                 {categoryLabel} · {t("deliveredOnly")}

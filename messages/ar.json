@@ -79,7 +79,8 @@
     "noChanges": "لا توجد تغييرات متاحة للحالة"
   },
   "login": {
-    "subtitle": "سجّل الدخول إلى لوحة التحكم الخاصة بك",
+    "subtitle": "أدخل رمز الوصول المحلي إلى لوحة التحكم",
+    "localOnlyWarning": "هذه بوابة تنقّل محلية وليست مصادقة آمنة.",
     "username": "اسم المستخدم",
     "usernamePlaceholder": "أدخل اسم المستخدم",
     "password": "كلمة المرور",
@@ -88,13 +89,12 @@
     "hidePassword": "إخفاء كلمة المرور",
     "required": "يرجى إدخال اسم المستخدم وكلمة المرور",
     "invalid": "اسم المستخدم أو كلمة المرور غير صحيحة",
-    "rateLimited": "محاولات كثيرة. يرجى الانتظار قبل المحاولة مجدداً.",
-    "unavailable": "تسجيل الدخول غير متاح مؤقتاً. يرجى المحاولة مجدداً.",
+    "unavailable": "تعذّر حفظ الوصول المحلي إلى لوحة التحكم. يرجى المحاولة مجدداً.",
     "signingIn": "جارٍ تسجيل الدخول…",
     "signIn": "تسجيل الدخول"
   },
   "authGuard": {
-    "unavailable": "تعذّر التحقق من جلستك. يرجى تحديث الصفحة أو تسجيل الدخول مجدداً."
+    "unavailable": "الوصول المحلي إلى لوحة التحكم غير متاح. يرجى تسجيل الدخول مجدداً."
   },
   "errors": {
     "title": "حدث خطأ ما",
@@ -176,6 +176,7 @@
     "noMatch": "لا توجد منتجات مطابقة لـ \"{search}\"",
     "empty": "لا توجد منتجات بعد",
     "tableProduct": "المنتج",
+    "productNumber": "رقم المنتج",
     "tablePrice": "السعر",
     "tableCost": "الكلفة",
     "tableMargin": "الهامش",
@@ -336,9 +337,11 @@
     "pendingOrders": "الطلبات المعلّقة",
     "cancelledOrders": "الطلبات الملغاة",
     "campaigns": "الحملات المرتبطة",
-    "campaignsDescription": "يُقسّم إنفاق الحملة بالتساوي على المنتجات المرتبطة بها مع توزيع دقيق للسنتات.",
+    "campaignsDescription": "يعتمد الإنفاق التاريخي الموزّع على لقطات محفوظة لروابط الحملات بالمنتجات. وهو تقدير وليس إسناداً فعلياً لإعلانات المنتجات.",
     "noCampaigns": "لا توجد حملات مرتبطة بهذا المنتج.",
     "linkedProducts": "{count} منتجات",
+    "currentlyLinked": "مرتبط حالياً",
+    "historicallyLinked": "توزيع تاريخي؛ غير مرتبط حالياً",
     "campaignSpend": "إنفاق الحملة",
     "productAllocation": "حصة هذا المنتج",
     "orders": "الطلبات السابقة",
@@ -366,8 +369,7 @@
     "accounts": {
       "viora": "Viora",
       "trendora_facebook": "Trendora — فيسبوك",
-      "trendora_instagram": "Trendora — إنستغرام",
-      "trendora_other": "Trendora — أخرى"
+      "trendora_instagram": "Trendora — إنستغرام"
     },
     "spend": "الإنفاق طوال الفترة",
     "messages": "الرسائل",
@@ -375,13 +377,40 @@
     "costPerMessage": "التكلفة لكل رسالة",
     "linkedCount": "المنتجات المرتبطة",
     "productsTitle": "روابط المنتجات",
-    "productsDescription": "اربط المنتجات أو أزل ارتباطها دون تغيير إنفاق الحملة.",
+    "productsDescription": "تؤثر الروابط الحالية على التوزيعات المستقبلية فقط، وتبقى التوزيعات التاريخية المحفوظة كما هي.",
     "search": "البحث عن المنتجات",
     "noResults": "لا توجد منتجات مطابقة للبحث.",
     "noProducts": "لا توجد منتجات متاحة.",
     "stock": "المخزون: {count}",
     "link": "ربط المنتج",
-    "unlink": "إلغاء الربط"
+    "unlink": "إلغاء الربط",
+    "invalidCampaignKey": "رابط الحملة غير صالح.",
+    "statusUnavailable": "حالة المصدر غير متاحة",
+    "effectiveStatus": "الحالة الفعلية",
+    "configuredStatus": "الحالة المضبوطة",
+    "allocatedSpend": "الإنفاق الموزّع",
+    "unallocatedSpend": "الإنفاق غير الموزّع",
+    "historicalProductAllocation": "الإنفاق التاريخي الموزّع",
+    "historicalAllocations": "توزيعات المنتجات التاريخية",
+    "historicalAllocationsDescription": "تبقى هويات المنتجات وتوزيعات الإنفاق المحفوظة دون تغيير عند تعديل روابط الحملات الحالية.",
+    "currentlyLinked": "مرتبط حالياً",
+    "historicallyLinked": "توزيع تاريخي؛ غير مرتبط حالياً",
+    "firstActivity": "أول نشاط",
+    "lastActivity": "آخر نشاط",
+    "productAllocation": "حصة الإنفاق الإعلاني",
+    "catalogState": {
+      "active": "حملة نشطة",
+      "paused": "حملة متوقفة مؤقتاً / غير نشطة",
+      "historical": "حملة تاريخية / مكتملة",
+      "deleted": "محذوفة / لم تعد متاحة من ويندور",
+      "unverified": "حملة غير مؤكدة",
+      "other": "حالة الحملة غير متاحة"
+    },
+    "providerState": {
+      "current": "ظهرت في آخر مزامنة",
+      "historical": "حملة تاريخية",
+      "unknown": "حالة المزامنة غير مؤكدة"
+    }
   },
   "orders": {
     "title": "الطلبات",
@@ -695,14 +724,34 @@
     "accounts": {
       "viora": "Viora",
       "trendora_facebook": "Trendora — فيسبوك",
-      "trendora_instagram": "Trendora — إنستغرام",
-      "trendora_other": "Trendora — أخرى"
+      "trendora_instagram": "Trendora — إنستغرام"
     },
     "stores": {
       "viora": "Viora",
       "trendora": "Trendora"
     },
     "noCampaigns": "لا توجد حملات بعد",
+    "campaignsLoading": "جارٍ تحميل الحملات...",
+    "campaignsError": "تعذّر تحميل الحملات.",
+    "retry": "إعادة المحاولة",
+    "providerState": {
+      "current": "ظهرت في آخر مزامنة",
+      "historical": "تاريخية",
+      "unknown": "غير مؤكدة"
+    },
+    "campaignStateSummary": "أعداد الحملات حسب الحالة",
+    "campaignState": {
+      "active": "نشطة",
+      "paused": "متوقفة مؤقتاً / غير نشطة",
+      "historical": "تاريخية / مكتملة",
+      "deleted": "محذوفة / لم تعد متاحة",
+      "unverified": "غير مؤكدة",
+      "other": "حالة أخرى / غير متاحة"
+    },
+    "effectiveStatus": "الفعلية",
+    "configuredStatus": "المضبوطة",
+    "allocationBreakdown": "موزّع {allocated} · غير موزّع {unallocated}",
+    "accountNotMapped": "لم يتم تعيين الحساب في ويندور",
     "cpmShort": "تكلفة/رسالة",
     "grandBreakdown": "{label} {amount}",
     "manualTitle": "مصاريف إعلانية يدوية",

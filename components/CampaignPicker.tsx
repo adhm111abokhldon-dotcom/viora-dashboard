@@ -26,7 +26,7 @@ export default function CampaignPicker({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const query = useQuery({
-    queryKey: ["campaignCatalog", page, search],
+    queryKey: ["campaignCatalog", "all", page, PAGE_SIZE, search],
     queryFn: () => getCampaignCatalog({ page, limit: PAGE_SIZE, search }),
   });
   const selectedKeys = new Set(value.map((campaign) => campaign.key));

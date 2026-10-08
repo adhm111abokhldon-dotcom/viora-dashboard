@@ -244,7 +244,9 @@ export default function AdvertisingPage() {
                     {t(`accounts.${account.key}`)}
                   </dt>
                   <dd className="mt-1 text-base font-semibold tabular-nums">
-                    {formatCurrency(account.spend, locale)}
+                    {account.configured
+                      ? formatCurrency(account.spend, locale)
+                      : t("accountNotMapped")}
                   </dd>
                 </div>
               ))}
@@ -465,13 +467,17 @@ export default function AdvertisingPage() {
                             {t(`accounts.${account.key}`)}
                           </p>
                           <p className="text-xs text-muted-foreground tabular-nums">
-                            {hasData
+                            {!account.configured
+                              ? t("accountNotMapped")
+                              : hasData
                               ? `${t("messages")}: ${formatNumber(account.messages, locale)}`
                               : t("noDataForAccount")}
                           </p>
                         </div>
                         <p className="shrink-0 text-sm font-semibold tabular-nums">
-                          {hasData ? formatCurrency(account.spend, locale) : "—"}
+                          {account.configured && hasData
+                            ? formatCurrency(account.spend, locale)
+                            : "—"}
                         </p>
                       </li>
                     );

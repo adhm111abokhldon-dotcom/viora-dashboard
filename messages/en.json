@@ -79,7 +79,8 @@
     "noChanges": "No status changes available"
   },
   "login": {
-    "subtitle": "Sign in to your dashboard",
+    "subtitle": "Enter the local dashboard access code",
+    "localOnlyWarning": "This is a local navigation gate, not secure authentication.",
     "username": "Username",
     "usernamePlaceholder": "Enter your username",
     "password": "Password",
@@ -88,13 +89,12 @@
     "hidePassword": "Hide password",
     "required": "Please enter your username and password.",
     "invalid": "Invalid username or password.",
-    "rateLimited": "Too many attempts. Please wait before trying again.",
-    "unavailable": "Sign-in is temporarily unavailable. Please try again.",
+    "unavailable": "Local dashboard access could not be saved. Please try again.",
     "signingIn": "Signing in…",
     "signIn": "Sign In"
   },
   "authGuard": {
-    "unavailable": "Your session could not be verified. Please refresh or sign in again."
+    "unavailable": "Local dashboard access is unavailable. Please sign in again."
   },
   "errors": {
     "title": "Something went wrong",
@@ -176,6 +176,7 @@
     "noMatch": "No products match \"{search}\"",
     "empty": "No products yet",
     "tableProduct": "Product",
+    "productNumber": "Product #",
     "tablePrice": "Price",
     "tableCost": "Cost",
     "tableMargin": "Margin",
@@ -336,9 +337,11 @@
     "pendingOrders": "Pending orders",
     "cancelledOrders": "Cancelled orders",
     "campaigns": "Linked campaigns",
-    "campaignsDescription": "Campaign spend is split equally across its linked products, with cent-exact allocation.",
+    "campaignsDescription": "Historical allocated spend follows saved campaign-product snapshots. It is an estimate, not product-level ad attribution.",
     "noCampaigns": "No campaigns are linked to this product.",
     "linkedProducts": "{count} products",
+    "currentlyLinked": "Currently linked",
+    "historicallyLinked": "Historical allocation; not linked now",
     "campaignSpend": "Campaign spend",
     "productAllocation": "This product's share",
     "orders": "Historical orders",
@@ -366,8 +369,7 @@
     "accounts": {
       "viora": "Viora",
       "trendora_facebook": "Trendora — Facebook",
-      "trendora_instagram": "Trendora — Instagram",
-      "trendora_other": "Trendora — Other"
+      "trendora_instagram": "Trendora — Instagram"
     },
     "spend": "All-time spend",
     "messages": "Messages",
@@ -375,13 +377,40 @@
     "costPerMessage": "Cost per message",
     "linkedCount": "Linked products",
     "productsTitle": "Product links",
-    "productsDescription": "Link or unlink products without changing campaign spend.",
+    "productsDescription": "Current links affect future allocations only. Saved historical allocations remain unchanged.",
     "search": "Search products",
     "noResults": "No products match your search.",
     "noProducts": "No products are available.",
     "stock": "Stock: {count}",
     "link": "Link product",
-    "unlink": "Unlink product"
+    "unlink": "Unlink product",
+    "invalidCampaignKey": "This campaign link is invalid.",
+    "statusUnavailable": "Provider status unavailable",
+    "effectiveStatus": "Effective status",
+    "configuredStatus": "Configured status",
+    "allocatedSpend": "Allocated spend",
+    "unallocatedSpend": "Unallocated spend",
+    "historicalProductAllocation": "Historical allocated spend",
+    "historicalAllocations": "Historical product allocations",
+    "historicalAllocationsDescription": "Saved product identities and spend allocations are unchanged by current campaign links.",
+    "currentlyLinked": "Currently linked",
+    "historicallyLinked": "Historical allocation; not linked now",
+    "firstActivity": "First activity",
+    "lastActivity": "Last activity",
+    "productAllocation": "Ad spend allocation",
+    "catalogState": {
+      "active": "Active campaign",
+      "paused": "Paused / inactive campaign",
+      "historical": "Historical / completed campaign",
+      "deleted": "Deleted / no longer available from Windsor",
+      "unverified": "Unverified campaign",
+      "other": "Campaign status unavailable"
+    },
+    "providerState": {
+      "current": "Seen in latest sync",
+      "historical": "Historical campaign",
+      "unknown": "Sync status unverified"
+    }
   },
   "orders": {
     "title": "Orders",
@@ -695,14 +724,34 @@
     "accounts": {
       "viora": "Viora",
       "trendora_facebook": "Trendora — Facebook",
-      "trendora_instagram": "Trendora — Instagram",
-      "trendora_other": "Trendora — Other"
+      "trendora_instagram": "Trendora — Instagram"
     },
     "stores": {
       "viora": "Viora",
       "trendora": "Trendora"
     },
     "noCampaigns": "No campaigns yet",
+    "campaignsLoading": "Loading campaigns...",
+    "campaignsError": "Campaigns could not be loaded.",
+    "retry": "Try again",
+    "providerState": {
+      "current": "Seen in latest sync",
+      "historical": "Historical",
+      "unknown": "Unverified"
+    },
+    "campaignStateSummary": "Campaign status counts",
+    "campaignState": {
+      "active": "Active",
+      "paused": "Paused / inactive",
+      "historical": "Historical / completed",
+      "deleted": "Deleted / no longer available",
+      "unverified": "Unverified",
+      "other": "Other / status unavailable"
+    },
+    "effectiveStatus": "Effective",
+    "configuredStatus": "Configured",
+    "allocationBreakdown": "Allocated {allocated} · Unallocated {unallocated}",
+    "accountNotMapped": "Account not mapped in Windsor",
     "cpmShort": "Cost/msg",
     "grandBreakdown": "{label} {amount}",
     "manualTitle": "Manual advertising expenses",
