@@ -204,8 +204,8 @@ export default function CampaignDetailsPage() {
                         <p className="mt-1 truncate text-xs text-muted-foreground">
                           {product.category} · {formatCurrency(product.price, locale)} ·{" "}
                           {t("stock", { count: formatNumber(product.stock, locale) })}
-                          {product.allocation !== null && product.allocation > 0
-                            ? ` · ${t("historicalProductAllocation")}: ${formatCurrency(product.allocation, locale)}`
+                          {product.linked
+                            ? ` · ${t("productAllocation")}: ${formatCurrency(product.allocation, locale)}`
                             : ""}
                         </p>
                       </Link>
@@ -247,42 +247,6 @@ export default function CampaignDetailsPage() {
           )}
         </CardContent>
       </Card>
-      {query.data.historicalAllocations.length > 0 && (
-        <Card className="shadow-none">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-base">
-              {t("historicalAllocations")}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {t("historicalAllocationsDescription")}
-            </p>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ul className="divide-y divide-border">
-              {query.data.historicalAllocations.map((allocation) => (
-                <li
-                  key={`${allocation.productId}:${allocation.productName}`}
-                  className="flex items-center justify-between gap-3 p-4"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {allocation.productName}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {allocation.linked
-                        ? t("currentlyLinked")
-                        : t("historicallyLinked")}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold tabular-nums">
-                    {formatCurrency(allocation.amount, locale)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

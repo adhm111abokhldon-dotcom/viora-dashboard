@@ -227,16 +227,10 @@ export async function getCampaignCatalog(params: {
 
 export type CampaignProductsResponse = {
   campaign: CampaignCatalogItem;
-  historicalAllocations: Array<{
-    productId: string;
-    productName: string;
-    amount: number;
-    linked: boolean;
-  }>;
   products: Array<
     Pick<Product, "_id" | "name" | "category" | "imageUrl" | "price" | "cost" | "stock"> & {
       linked: boolean;
-      allocation: number | null;
+      allocation: number;
     }
   >;
   pagination: {

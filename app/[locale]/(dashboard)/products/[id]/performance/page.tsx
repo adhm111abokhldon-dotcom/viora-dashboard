@@ -161,11 +161,7 @@ export default function ProductPerformancePage() {
                           {campaign.status ? ` · ${campaign.status.replaceAll("_", " ")}` : ""}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {t(
-                            campaign.currentlyLinked
-                              ? "currentlyLinked"
-                              : "historicallyLinked",
-                          )}
+                          {t("currentlyLinked")}
                         </p>
                         <p className="mt-1 text-xs tabular-nums text-muted-foreground">
                           {ta("messagesAndClicks", {
