@@ -367,9 +367,7 @@
   "campaignDetails": {
     "back": "Back to advertising",
     "accounts": {
-      "viora": "Viora",
-      "trendora_facebook": "Trendora — Facebook",
-      "trendora_instagram": "Trendora — Instagram"
+      "viora": "Viora"
     },
     "spend": "All-time spend",
     "messages": "Messages",
@@ -710,25 +708,30 @@
       "noRows": "Windsor returned no data for this period.",
       "currencyNote": "Windsor reported {amount} {currency} for this period. Converted at {rate} and stored in USD.",
       "syncDone": "Windsor data synced",
-      "manualCoexist": "You also have {count} manual entries ({amount}) in this period. They are a separate ad account, so they are ADDED to the Windsor spend.",
+      "manualCoexist": "You also have {count} manual entries ({amount}) in this period. They remain separate from Windsor campaign spend and are included once in the advertising total.",
       "totalSpendUsd": "Spend (USD)",
       "totalSpendAed": "{amount} {currency} reported",
       "rowAed": "Windsor reported {amount} {currency}",
-      "fullPeriodHint": "Preview fetches everything Windsor has for both connections. No date range is needed.",
+      "fullPeriodHint": "Preview fetches the full period available from the Viora Windsor connection. No date range is needed.",
       "availablePeriod": "Available period: {period}",
       "noPeriod": "Windsor returned no dated data.",
       "connectionError": "Connection problem: {message}",
       "noDataForAccount": "No data for this account"
     },
     "messagesAndClicks": "{messages} messages · {clicks} clicks",
+    "totalCampaigns": "Campaigns",
+    "totalClicks": "Clicks",
+    "totalMessages": "Messaging conversations",
+    "campaignSpend": "Campaign spend",
+    "linkedProductCount": "{count} linked products",
+    "lastSynced": "Last synced {date}",
+    "allocatedSpend": "Allocated spend",
+    "unallocatedSpend": "Unallocated spend",
     "accounts": {
-      "viora": "Viora",
-      "trendora_facebook": "Trendora — Facebook",
-      "trendora_instagram": "Trendora — Instagram"
+      "viora": "Viora"
     },
     "stores": {
-      "viora": "Viora",
-      "trendora": "Trendora"
+      "viora": "Viora"
     },
     "noCampaigns": "No campaigns yet",
     "campaignsLoading": "Loading campaigns...",
@@ -775,7 +778,8 @@
     "currencyBasisNote": "Windsor reports in {currency} and is converted at a fixed {rate}. Manual entries are already in USD. Total = Windsor USD + Manual USD.",
     "windsorSection": "Windsor - all available data",
     "availablePeriod": "Available period: {period}",
-    "allAvailableNote": "All available data from both Windsor connections. No date limit.",
+    "allAvailableNote": "All available campaign data from the Viora Windsor connection. No date limit.",
+    "windsorCampaignSpend": "Windsor campaign spend",
     "totalAdSpend": "Total ad spend",
     "spendSplit": "Windsor {windsor} · Manual {manual}",
     "windsorSource": "Windsor reported",

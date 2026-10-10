@@ -22,6 +22,7 @@ type OrderFilter = (typeof FILTERS)[number];
 
 export default function ProductPerformancePage() {
   const t = useTranslations("productProfitability");
+  const ta = useTranslations("advertising");
   const te = useTranslations("errors");
   const locale = useLocale() as "en" | "ar";
   const params = useParams<{ id: string }>();
@@ -156,17 +157,38 @@ export default function ProductPerformancePage() {
                           {campaign.accountName} · {t("linkedProducts", { count: formatNumber(campaign.linkedProductCount, locale) })}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
+                          {campaign.platform} · {ta(`campaignState.${campaign.catalogState}`)} · {ta(`providerState.${campaign.providerState}`)}
+                          {campaign.status ? ` · ${campaign.status.replaceAll("_", " ")}` : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {t(
                             campaign.currentlyLinked
                               ? "currentlyLinked"
                               : "historicallyLinked",
                           )}
                         </p>
+                        <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                          {ta("messagesAndClicks", {
+                            messages: formatNumber(campaign.messages, locale),
+                            clicks: formatNumber(campaign.clicks, locale),
+                          })}
+                        </p>
+                        {campaign.lastSeenAt && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {ta("lastSynced", {
+                              date: formatDate(campaign.lastSeenAt, locale),
+                            })}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:text-end">
-                      <span className="text-muted-foreground">{t("campaignSpend")}</span>
+                      <span className="text-muted-foreground">{ta("campaignSpend")}</span>
                       <span className="font-medium tabular-nums">{formatCurrency(campaign.spend, locale)}</span>
+                      <span className="text-muted-foreground">{ta("allocatedSpend")}</span>
+                      <span className="font-medium tabular-nums">{formatCurrency(campaign.allocatedSpend, locale)}</span>
+                      <span className="text-muted-foreground">{ta("unallocatedSpend")}</span>
+                      <span className="font-medium tabular-nums">{formatCurrency(campaign.unallocatedSpend, locale)}</span>
                       <span className="text-muted-foreground">{t("productAllocation")}</span>
                       <span className="font-semibold tabular-nums">{formatCurrency(campaign.allocation, locale)}</span>
                     </div>

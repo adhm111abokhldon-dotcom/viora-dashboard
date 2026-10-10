@@ -122,7 +122,9 @@ export async function deleteProduct(productId: string): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to delete product");
+    // Surface the backend validation message (e.g. the Pending-orders
+    // deletion guard) so the toast explains WHY the delete was rejected.
+    throw new Error(await errorMessage(response, "Failed to delete product"));
   }
 }
 
@@ -157,7 +159,7 @@ export async function updateProduct(
 
 export type CampaignReference = {
   key: string;
-  store: "viora" | "trendora";
+  store: "viora";
   accountId: string;
   campaign: string;
 };
@@ -330,11 +332,20 @@ export type ProductProfitabilityResponse = {
       accountName: string;
       platform: string;
       spend: number;
+      allocatedSpend: number;
+      unallocatedSpend: number;
       messages: number;
       clicks: number;
       linkedProductCount: number;
       currentlyLinked: boolean;
       allocation: number;
+      status: string | null;
+      configuredStatus: string | null;
+      providerState: "current" | "historical" | "unknown";
+      catalogState: CampaignCatalogItem["catalogState"];
+      firstActivity: string | null;
+      lastActivity: string | null;
+      lastSeenAt: string | null;
     }
   >;
   advertising: { totalAllocated: number };
@@ -515,7 +526,7 @@ export type AdvertisingExpense = {
   /** Raw amount as the source reported it (Windsor rows: AED). */
   originalAmount?: number;
   originalCurrency?: string;
-  store?: "viora" | "trendora";
+  store?: "viora";
   connectionId?: string;
   accountId?: string;
   accountName?: string;
@@ -637,16 +648,13 @@ export async function deleteAdvertisingExpense(expenseId: string): Promise<void>
 /* Windsor sync + advertising summary                                          */
 /* -------------------------------------------------------------------------- */
 
-export type AdStore = "viora" | "trendora";
+export type AdStore = "viora";
 
 /**
  * Business account keys - the ONLY account identities the UI renders.
  * Mirrors backend/src/lib/adAccounts.ts.
  */
-export type AdAccountKey =
-  | "viora"
-  | "trendora_facebook"
-  | "trendora_instagram";
+export type AdAccountKey = "viora";
 
 /** One Windsor ad account discovered during preview / sync. */
 export type AdSource = {
@@ -677,6 +685,8 @@ export type AdAccountSummary = {
   key: AdAccountKey;
   configured: boolean;
   spend: number;
+  allocatedSpend: number;
+  unallocatedSpend: number;
   messages: number;
   clicks: number;
   costPerMessage: number | null;
@@ -692,7 +702,7 @@ export type AdSummary = {
   /** Windsor (every account) + manual, counted exactly once each. */
   grandTotal: number;
   manual: { spend: number; count: number };
-  /** Fixed order: viora, trendora_facebook, trendora_instagram. */
+  /** Only the Viora advertising account is exposed. */
   accounts: AdAccountSummary[];
 };
 
@@ -749,7 +759,7 @@ export type AdPerformanceResponse = {
     breakEvenPerOrder: number | null;
     adSpentPerMessage: number | null;
   };
-  /** Fixed order: viora, trendora_facebook, trendora_instagram. */
+  /** Only the Viora advertising account is exposed. */
   accounts: Array<{
     key: AdAccountKey;
     configured: boolean;
@@ -816,7 +826,7 @@ export type WindsorPreview = {
   created: number;
   updated: number;
   unchanged: number;
-  /** Manual spend in USD - a separate account, added to (never blocking) Windsor. */
+  /** Manual spend in USD - separate from campaign spend and preserved on sync. */
   manual: { total: number; count: number };
 };
 
@@ -1013,7 +1023,7 @@ export async function deleteOrder(orderId: string): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to delete order");
+    throw new Error(await errorMessage(response, "Failed to delete order"));
   }
 }
 

@@ -367,9 +367,7 @@
   "campaignDetails": {
     "back": "العودة إلى الإعلانات",
     "accounts": {
-      "viora": "Viora",
-      "trendora_facebook": "Trendora — فيسبوك",
-      "trendora_instagram": "Trendora — إنستغرام"
+      "viora": "Viora"
     },
     "spend": "الإنفاق طوال الفترة",
     "messages": "الرسائل",
@@ -710,25 +708,30 @@
       "noRows": "لم تُرجع ويندور أي بيانات لهذه الفترة.",
       "currencyNote": "أبلغت ويندور عن {amount} {currency} لهذه الفترة. تم التحويل بسعر {rate} والتخزين بالدولار.",
       "syncDone": "تمت مزامنة بيانات ويندور",
-      "manualCoexist": "لديك أيضاً {count} إدخال يدوي بإجمالي {amount} في هذه الفترة. فهي تمثل حساب إعلانات منفصل، لذا تُضاف إلى إنفاق ويندور.",
+      "manualCoexist": "لديك أيضاً {count} إدخال يدوي بإجمالي {amount} في هذه الفترة. تبقى منفصلة عن إنفاق حملات ويندور وتُضاف مرة واحدة إلى إجمالي الإعلانات.",
       "totalSpendUsd": "الإنفاق (دولار)",
       "totalSpendAed": "{amount} {currency} كما ورد",
       "rowAed": "أبلغت ويندور عن {amount} {currency}",
-      "fullPeriodHint": "تجلب المعاينة كل ما لدى ويندور للاتصالين، دون حاجة لاختيار فترة.",
+      "fullPeriodHint": "تجلب المعاينة كامل الفترة المتاحة من اتصال ويندور الخاص بـ Viora، دون حاجة لاختيار فترة.",
       "availablePeriod": "الفترة المتاحة: {period}",
       "noPeriod": "لم تُرجع ويندور أي بيانات مؤرخة.",
       "connectionError": "مشكلة في الاتصال: {message}",
       "noDataForAccount": "لا توجد بيانات لهذا الحساب"
     },
     "messagesAndClicks": "{messages} رسالة · {clicks} نقرة",
+    "totalCampaigns": "الحملات",
+    "totalClicks": "النقرات",
+    "totalMessages": "محادثات المراسلة",
+    "campaignSpend": "إنفاق الحملة",
+    "linkedProductCount": "{count} منتجات مرتبطة",
+    "lastSynced": "آخر مزامنة {date}",
+    "allocatedSpend": "الإنفاق الموزّع",
+    "unallocatedSpend": "الإنفاق غير الموزّع",
     "accounts": {
-      "viora": "Viora",
-      "trendora_facebook": "Trendora — فيسبوك",
-      "trendora_instagram": "Trendora — إنستغرام"
+      "viora": "Viora"
     },
     "stores": {
-      "viora": "Viora",
-      "trendora": "Trendora"
+      "viora": "Viora"
     },
     "noCampaigns": "لا توجد حملات بعد",
     "campaignsLoading": "جارٍ تحميل الحملات...",
@@ -775,7 +778,8 @@
     "currencyBasisNote": "تعرض ويندور الإعلانات بـ{currency} ويحوَّل بسعر ثابت {rate}. الإدخالات اليدوية بالدولار أصلاً. الإجمالي = ويندور بالدولار + يدوي بالدولار.",
     "windsorSection": "ويندور - كل البيانات المتاحة",
     "availablePeriod": "الفترة المتاحة: {period}",
-    "allAvailableNote": "كل البيانات المتاحة من اتصالَي ويندور، دون حد زمني.",
+    "allAvailableNote": "كل البيانات المتاحة من اتصال ويندور الخاص بـ Viora، دون حد زمني.",
+    "windsorCampaignSpend": "إنفاق حملات ويندور",
     "totalAdSpend": "إجمالي إنفاق الإعلانات",
     "spendSplit": "ويندور {windsor} · يدوي {manual}",
     "windsorSource": "أبلغت ويندور عن",

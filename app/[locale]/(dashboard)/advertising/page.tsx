@@ -66,8 +66,7 @@ const VERDICT_BADGE_CLASSES: Record<string, string> = {
  *
  * Data model:
  *   - `adSummary` (GET /advertising/insights) owns every headline number:
- *     the grand total, each business account (Viora / Trendora - Facebook /
- *     Trendora - Instagram) and the manual break-out. It always covers ALL
+ *     the grand total, the Viora Windsor account and the manual break-out. It always covers ALL
  *     available data - there are no date windows and page-2 never changes it.
  *   - the expense list (GET /advertising) owns the detailed records only:
  *     manual entries plus Windsor rows, newest first, user-controlled
@@ -193,6 +192,23 @@ export default function AdvertisingPage() {
   const manualSpend = summary?.manual.spend ?? 0;
   const manualCount = summary?.manual.count ?? 0;
   const grandTotal = summary?.grandTotal ?? 0;
+  const totalCampaigns = accounts.reduce(
+    (sum, account) => sum + account.campaignCount,
+    0,
+  );
+  const totalClicks = accounts.reduce((sum, account) => sum + account.clicks, 0);
+  const totalMessages = accounts.reduce(
+    (sum, account) => sum + account.messages,
+    0,
+  );
+  const totalAllocatedSpend = accounts.reduce(
+    (sum, account) => sum + account.allocatedSpend,
+    0,
+  );
+  const totalUnallocatedSpend = accounts.reduce(
+    (sum, account) => sum + account.unallocatedSpend,
+    0,
+  );
 
   // Headline numbers always come from the summary (ALL data); this list
   // holds only the current page of manual records.
@@ -237,11 +253,33 @@ export default function AdvertisingPage() {
                 {t("summaryNote")}
               </p>
             </div>
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-3 lg:grid-cols-5">
+              {[
+                [t("totalCampaigns"), formatNumber(totalCampaigns, locale)],
+                [t("totalClicks"), formatNumber(totalClicks, locale)],
+                [t("totalMessages"), formatNumber(totalMessages, locale)],
+                [
+                  t("allocatedSpend"),
+                  formatCurrency(totalAllocatedSpend, locale),
+                ],
+                [
+                  t("unallocatedSpend"),
+                  formatCurrency(totalUnallocatedSpend, locale),
+                ],
+              ].map(([label, value]) => (
+                <div key={label} className="bg-card px-3 py-2.5">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 text-sm font-semibold tabular-nums">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
             <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-4">
               {accounts.map((account) => (
                 <div key={account.key} className="bg-card px-4 py-3">
                   <dt className="text-xs text-muted-foreground">
-                    {t(`accounts.${account.key}`)}
+                    {t("windsorCampaignSpend")}
                   </dt>
                   <dd className="mt-1 text-base font-semibold tabular-nums">
                     {account.configured
@@ -516,7 +554,7 @@ export default function AdvertisingPage() {
           </Card>
         </motion.div>
       ) : (
-        <motion.div variants={itemVariants} className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 gap-4">
           {accounts.map((account) => (
             <AdvertisingAccountCard key={account.key} account={account} />
           ))}

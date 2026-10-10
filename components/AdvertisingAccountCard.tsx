@@ -7,15 +7,14 @@ import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/Pagination";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { getCampaignCatalog, type AdAccountSummary } from "@/lib/api";
 import { Link } from "@/i18n/navigation";
 
 const PAGE_SIZE = 10;
 
 /**
- * One business advertising account - Viora, Trendora — Facebook or
- * Trendora — Instagram - with its ALL-time totals and paginated campaigns.
+ * The Viora advertising account with its ALL-time totals and paginated campaigns.
  *
  * Campaigns are always grouped inside their account card, so spend from
  * different accounts is never mixed into one confusing table.
@@ -83,7 +82,7 @@ export default function AdvertisingAccountCard({
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-border bg-border">
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-3">
               <AccountStat
                 label={t("campaigns")}
                 value={formatNumber(account.campaignCount, locale)}
@@ -95,6 +94,14 @@ export default function AdvertisingAccountCard({
               <AccountStat
                 label={t("clicks")}
                 value={formatNumber(account.clicks, locale)}
+              />
+              <AccountStat
+                label={t("allocatedSpend")}
+                value={formatCurrency(account.allocatedSpend, locale)}
+              />
+              <AccountStat
+                label={t("unallocatedSpend")}
+                value={formatCurrency(account.unallocatedSpend, locale)}
               />
             </div>
             {account.campaignCount > 0 && (
@@ -169,6 +176,15 @@ export default function AdvertisingAccountCard({
                                   >
                                     {campaign.campaign || "—"}
                                   </p>
+                                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                    {campaign.accountName} · {campaign.platform} ·{" "}
+                                    {t("linkedProductCount", {
+                                      count: formatNumber(
+                                        campaign.linkedProductCount,
+                                        locale,
+                                      ),
+                                    })}
+                                  </p>
                                   <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                                     {t("messagesAndClicks", {
                                       messages: formatNumber(campaign.messages, locale),
@@ -184,6 +200,16 @@ export default function AdvertisingAccountCard({
                                       ? ` · ${campaign.configuredStatus.replaceAll("_", " ")}`
                                       : ""}
                                   </p>
+                                  {campaign.lastSeenAt && (
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      {t("lastSynced", {
+                                        date: formatDate(
+                                          campaign.lastSeenAt,
+                                          locale,
+                                        ),
+                                      })}
+                                    </p>
+                                  )}
                                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                     {t("allocationBreakdown", {
                                       allocated: formatCurrency(
@@ -198,6 +224,9 @@ export default function AdvertisingAccountCard({
                                   </p>
                                 </div>
                                 <div className="shrink-0 text-end">
+                                  <p className="text-[0.7rem] text-muted-foreground">
+                                    {t("campaignSpend")}
+                                  </p>
                                   <p className="text-sm font-semibold tabular-nums">
                                     {formatCurrency(campaign.spend, locale)}
                                   </p>
